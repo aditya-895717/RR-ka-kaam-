@@ -7,7 +7,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-change-me-before-prod
 
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-_allowed_hosts = config('DJANGO_ALLOWED_HOSTS', default='127.0.0.1,localhost')
+_allowed_hosts = config('DJANGO_ALLOWED_HOSTS', default='*')
 ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts.split(',') if h.strip()]
 
 CSRF_TRUSTED_ORIGINS = ['https://rrlaundry.onrender.com']
