@@ -1,0 +1,114 @@
+{% extends "delivery/base_delivery.html" %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="page-heading">Welcome, {{ request.user.get_short_name() }}</h1>
+    <p class="page-subtitle">
+      Delivery Portal
+      {% if profile and profile.city %}&mdash; {{ profile.city }}{% if profile.area %}, {{ profile.area }}{% endif %}{% endif %}
+    </p>
+  </div>
+  {% if profile %}
+  <span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;
+    {% if profile.is_available %}background:#0a2a0a;color:#4caf50;{% else %}background:#2a0a0a;color:#C41A1A;{% endif %}">
+    <span style="width:7px;height:7px;border-radius:50%;background:currentColor;"></span>
+    {{ 'Available' if profile.is_available else 'Unavailable' }}
+  </span>
+  {% endif %}
+</div>
+
+{# ── Stats ── #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card-section text-center">
+      <div style="font-size:32px;font-weight:700;color:#9c88ff;">{{ pending_pickup|length }}</div>
+      <div style="font-size:12px;color:#a0a0a0;margin-top:4px;">Pending Pickups</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card-section text-center">
+      <div style="font-size:32px;font-weight:700;color:#ffa500;">{{ pending_delivery|length }}</div>
+      <div style="font-size:12px;color:#a0a0a0;margin-top:4px;">Pending Deliveries</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card-section text-center">
+      <div style="font-size:32px;font-weight:700;color:#4caf50;">{{ completed_today }}</div>
+      <div style="font-size:12px;color:#a0a0a0;margin-top:4px;">Completed Today</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card-section text-center">
+      <div style="font-size:32px;font-weight:700;color:#C41A1A;">{{ items_scanned_today }}</div>
+      <div style="font-size:12px;color:#a0a0a0;margin-top:4px;">Items Scanned Today</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+
+  {# ── Pending Pickups ── #}
+  <div class="col-12 col-lg-6">
+    <div class="card-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <h6 style="margin:0;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:#a0a0a0;">Pending Pickups (S1)</h6>
+        <span class="job-badge jb-pickup">PICKUP</span>
+      </div>
+
+      {% if pending_pickup %}
+        {% for job in pending_pickup %}
+        <div style="background:#0d0d0d;border:1px solid #222;border-radius:5px;padding:14px;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-size:13px;font-weight:600;color:#fff;">{{ job.order.hospital.hospital_name }}</div>
+              <div style="font-size:11px;color:#777;margin-top:2px;">Order #{{ job.order.short_id }} &nbsp;·&nbsp; {{ job.order.items.count() }} item(s)</div>
+            </div>
+            <span class="job-badge jb-{{ job.status|lower }}">{{ job.get_status_display() }}</span>
+          </div>
+          <a href="{{ url('delivery_scan_pickup', job_id=job.job_id) }}"
+             style="display:block;margin-top:10px;background:var(--accent);color:#fff;border:none;padding:8px;font-size:13px;font-weight:600;border-radius:5px;text-align:center;text-decoration:none;">
+            Scan Pickup
+          </a>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="text-align:center;padding:32px 0;color:#555;font-size:13px;">No pending pickups</div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# ── Pending Deliveries ── #}
+  <div class="col-12 col-lg-6">
+    <div class="card-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <h6 style="margin:0;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:#a0a0a0;">Pending Deliveries (S4)</h6>
+        <span class="job-badge jb-delivery">DELIVERY</span>
+      </div>
+
+      {% if pending_delivery %}
+        {% for job in pending_delivery %}
+        <div style="background:#0d0d0d;border:1px solid #222;border-radius:5px;padding:14px;margin-bottom:10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <div style="font-size:13px;font-weight:600;color:#fff;">{{ job.order.hospital.hospital_name }}</div>
+              <div style="font-size:11px;color:#777;margin-top:2px;">Order #{{ job.order.short_id }} &nbsp;·&nbsp; {{ job.order.items.count() }} item(s)</div>
+            </div>
+            <span class="job-badge jb-{{ job.status|lower }}">{{ job.get_status_display() }}</span>
+          </div>
+          <a href="{{ url('delivery_scan_delivery', job_id=job.job_id) }}"
+             style="display:block;margin-top:10px;background:#155724;color:#4caf50;border:1px solid #1e7e34;padding:8px;font-size:13px;font-weight:600;border-radius:5px;text-align:center;text-decoration:none;">
+            Scan Delivery
+          </a>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="text-align:center;padding:32px 0;color:#555;font-size:13px;">No pending deliveries</div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

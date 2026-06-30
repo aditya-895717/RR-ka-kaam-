@@ -1,0 +1,133 @@
+{% extends "hospital/base_hospital.html" %}
+{% block page_title %}Order {{ order.short_id }}{% endblock %}
+
+{% block content %}
+
+{# ── Header ── #}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <div style="font-size:12px;color:#888;margin-bottom:4px;">
+      <a href="{{ url('hospital_order_list') }}" style="color:#888;text-decoration:none;">Order History</a>
+      <span class="mx-1">›</span>
+      <span>#{{ order.short_id }}</span>
+    </div>
+    <h1 class="page-heading">Order <code style="font-size:1rem;color:#003580;">#{{ order.short_id }}</code></h1>
+    <p class="page-subtitle mb-0">{{ order.created_at.strftime('%d %B %Y, %H:%M') }}</p>
+  </div>
+  {% set s = order.status %}
+  <div>
+    {% if s == 'CREATED' %}<span class="status-badge sb-created" style="font-size:13px;padding:6px 16px;">Created</span>
+    {% elif s == 'PICKUP_DONE' %}<span class="status-badge sb-pickup" style="font-size:13px;padding:6px 16px;">Picked Up</span>
+    {% elif s in ('AT_LAUNDRY', 'WASHED') %}<span class="status-badge sb-laundry" style="font-size:13px;padding:6px 16px;">At Laundry Plant</span>
+    {% elif s == 'DISPATCHED' %}<span class="status-badge sb-dispatch" style="font-size:13px;padding:6px 16px;">Out for Delivery</span>
+    {% elif s == 'DELIVERED' %}<span class="status-badge sb-delivered" style="font-size:13px;padding:6px 16px;">Delivered</span>
+    {% elif s == 'COMPLETED' %}<span class="status-badge sb-completed" style="font-size:13px;padding:6px 16px;">Completed</span>
+    {% elif s == 'FLAGGED' %}<span class="status-badge sb-flagged" style="font-size:13px;padding:6px 16px;">Flagged</span>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Delivery confirmation banner ── #}
+{% if order.status == 'DELIVERED' %}
+<div class="alert alert-portal mb-4" style="background:var(--accent-light);border:.5px solid #f5c0c0;color:var(--accent);">
+  <strong>Items delivered.</strong> Please verify and confirm delivery to close this order.
+  <form method="post" class="d-inline ms-2">
+    {{ csrf_input }}
+    <input type="hidden" name="action" value="confirm_delivery">
+    <button type="submit" class="btn btn-accent btn-sm" style="font-size:12px;padding:4px 14px;">Confirm Delivery</button>
+  </form>
+</div>
+{% endif %}
+
+{# ── Meta cards ── #}
+<div class="row g-3 mb-4">
+  <div class="col-12 col-md-4">
+    <div class="card-section" style="margin-bottom:0;">
+      <div class="card-section-title">Order Info</div>
+      <div style="font-size:13px;line-height:1.9;color:#444;">
+        <div><span style="color:#888;font-size:11px;">DEPT</span><br><strong>{{ order.department.department_name if order.department else 'Not specified' }}</strong></div>
+        <div class="mt-2"><span style="color:#888;font-size:11px;">ITEMS</span><br><strong>{{ items|length }}</strong></div>
+        <div class="mt-2"><span style="color:#888;font-size:11px;">CREATED BY</span><br><strong>{{ order.created_by.get_short_name() if order.created_by else '—' }}</strong></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="card-section" style="margin-bottom:0;">
+      <div class="card-section-title">Laundry Partner</div>
+      {% if order.laundry_partner %}
+      <div style="font-size:13px;line-height:1.9;color:#444;">
+        <div><strong>{{ order.laundry_partner.business_name }}</strong></div>
+        <div style="color:#888;">{{ order.laundry_partner.area }}, {{ order.laundry_partner.city }}</div>
+        <div style="margin-top:4px;color:var(--accent);font-weight:600;">₹{{ order.laundry_partner.price_per_item }} / item</div>
+      </div>
+      {% else %}
+      <div style="font-size:13px;color:#888;">Not assigned</div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="card-section" style="margin-bottom:0;">
+      <div class="card-section-title">Delivery Partner</div>
+      {% if order.delivery_partner %}
+      <div style="font-size:13px;line-height:1.9;color:#444;">
+        <div><strong>{{ order.delivery_partner.user.full_name or order.delivery_partner.user.email }}</strong></div>
+        <div style="color:#888;">{{ order.delivery_partner.area }}, {{ order.delivery_partner.city }}</div>
+        {% if order.delivery_partner.vehicle_type %}
+        <div style="color:#888;">{{ order.delivery_partner.get_vehicle_type_display() }}</div>
+        {% endif %}
+      </div>
+      {% else %}
+      <div style="font-size:13px;color:#888;">Not assigned</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{# ── Items table ── #}
+<div class="card-section p-0">
+  <div class="d-flex align-items-center justify-content-between px-4 py-3">
+    <div class="card-section-title mb-0">Items ({{ items|length }})</div>
+    <a href="{{ url('hospital_item_tracking') }}" style="font-size:12px;color:var(--accent);text-decoration:none;font-weight:600;">
+      Track individual items →
+    </a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-portal mb-0">
+      <thead>
+        <tr>
+          <th style="padding-left:1.5rem;">#</th>
+          <th>Tag Number</th>
+          <th>Item Type</th>
+          <th>Status</th>
+          <th>Last Scan</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        {% set is = item.status %}
+        <tr>
+          <td style="padding-left:1.5rem;color:#888;font-size:12px;">{{ loop.index }}</td>
+          <td><code style="font-size:12px;color:#003580;">{{ item.tag_number }}</code></td>
+          <td style="color:#444;">{{ item.get_item_type_display() }}</td>
+          <td>
+            {% set hl = item.hospital_status_label() %}
+            {% if hl == 'With Hospital' %}<span class="status-badge sb-created">With Hospital</span>
+            {% elif hl == 'Pickup Scanned' %}<span class="status-badge sb-pickup">Pickup Scanned</span>
+            {% elif hl == 'At Laundry Plant' %}<span class="status-badge sb-laundry">At Laundry Plant</span>
+            {% elif hl == 'Out for Delivery' %}<span class="status-badge sb-dispatch">Out for Delivery</span>
+            {% elif hl == 'Delivered' %}<span class="status-badge sb-delivered">Delivered</span>
+            {% elif hl == 'Completed' %}<span class="status-badge sb-completed">Completed</span>
+            {% else %}<span class="status-badge sb-flagged">{{ hl }}</span>
+            {% endif %}
+          </td>
+          <td style="color:#888;font-size:12px;">
+            {% if item.last_scanned_at %}{{ item.last_scanned_at.strftime('%d %b, %H:%M') }}{% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,130 @@
+{% extends "hospital/base_hospital.html" %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+
+{# ── Welcome ── #}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="page-heading">Welcome, {{ request.user.get_short_name() }}</h1>
+    <p class="page-subtitle mb-0">{{ profile.hospital_name }} — Dashboard</p>
+  </div>
+  <a href="{{ url('hospital_new_order') }}" class="btn btn-accent">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="me-1">
+      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+    New Order
+  </a>
+</div>
+
+{# ── Stat cards ── #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="stat-mini">
+      <div class="lbl">Active Orders</div>
+      <div class="value" style="color: var(--accent);">{{ active_orders }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-mini">
+      <div class="lbl">Pending Confirmation</div>
+      <div class="value">{{ pending_confirm }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-mini">
+      <div class="lbl">Items Today</div>
+      <div class="value">{{ items_today }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-mini">
+      <div class="lbl">Departments</div>
+      <div class="value">{{ dept_count }}</div>
+    </div>
+  </div>
+</div>
+
+{# ── No partner warning ── #}
+{% if not selection %}
+<div class="alert alert-warning alert-portal mb-4">
+  <strong>Partner not selected.</strong>
+  You need to select a laundry and delivery partner before creating orders.
+  <a href="{{ url('hospital_partners') }}" class="alert-link ms-1">Select Partners →</a>
+</div>
+{% endif %}
+
+{# ── Recent orders + Quick actions ── #}
+<div class="row g-3">
+  <div class="col-12 col-lg-8">
+    <div class="card-section">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <div class="card-section-title mb-0">Recent Orders</div>
+        <a href="{{ url('hospital_order_list') }}" style="font-size: 12px; color: var(--accent); text-decoration: none; font-weight: 600;">
+          View All →
+        </a>
+      </div>
+      {% if recent_orders %}
+      <div class="table-responsive">
+        <table class="table table-portal mb-0">
+          <thead>
+            <tr>
+              <th>Order ID</th><th>Department</th><th>Items</th><th>Status</th><th>Created</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for order in recent_orders %}
+            {% set s = order.status %}
+            <tr>
+              <td><code style="font-size:12px;color:#003580;">#{{ order.short_id }}</code></td>
+              <td>{{ order.department.department_name if order.department else '—' }}</td>
+              <td>{{ order.items.count() }}</td>
+              <td>
+                {% if s == 'CREATED' %}<span class="status-badge sb-created">Created</span>
+                {% elif s == 'PICKUP_DONE' %}<span class="status-badge sb-pickup">Picked Up</span>
+                {% elif s == 'AT_LAUNDRY' %}<span class="status-badge sb-laundry">At Laundry Plant</span>
+                {% elif s == 'DISPATCHED' %}<span class="status-badge sb-dispatch">Out for Delivery</span>
+                {% elif s == 'DELIVERED' %}<span class="status-badge sb-delivered">Delivered</span>
+                {% elif s == 'COMPLETED' %}<span class="status-badge sb-completed">Completed</span>
+                {% elif s == 'FLAGGED' %}<span class="status-badge sb-flagged">Flagged</span>
+                {% endif %}
+              </td>
+              <td style="color:#888;">{{ order.created_at.strftime('%d %b, %H:%M') }}</td>
+              <td>
+                <a href="{{ url('hospital_order_detail', order_id=order.order_id) }}"
+                   style="font-size:12px;color:var(--accent);text-decoration:none;font-weight:600;">View</a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="coming-soon-card" style="padding:2rem;">No orders yet. Create your first order above.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-4">
+    <div class="card-section">
+      <div class="card-section-title">Quick Actions</div>
+      <div class="d-grid gap-2">
+        <a href="{{ url('hospital_new_order') }}" class="btn btn-accent">+ New Laundry Order</a>
+        <a href="{{ url('hospital_departments') }}" class="btn btn-outline-secondary" style="font-size:13px;border-radius:6px;">Manage Departments</a>
+        <a href="{{ url('hospital_order_list') }}" class="btn btn-outline-secondary" style="font-size:13px;border-radius:6px;">All Orders</a>
+        <a href="{{ url('hospital_item_tracking') }}" class="btn btn-outline-secondary" style="font-size:13px;border-radius:6px;">Track by Tag</a>
+        <a href="{{ url('hospital_partners') }}" class="btn btn-outline-secondary" style="font-size:13px;border-radius:6px;">
+          {% if selection %}Change Partners{% else %}Select Partners{% endif %}
+        </a>
+      </div>
+      {% if selection %}
+      <hr style="border-color:#e8eef5;margin:1rem 0 .75rem;">
+      <div style="font-size:12px;color:#888;">
+        <div class="mb-1"><strong>Laundry:</strong> {{ selection.laundry_partner.business_name if selection.laundry_partner else '—' }}</div>
+        <div><strong>Delivery:</strong> {{ selection.delivery_partner.user.full_name if selection.delivery_partner else '—' }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

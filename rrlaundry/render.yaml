@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: rrlaundry
+    env: python
+    branch: Capture-The-Flag
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate
+    startCommand: gunicorn rrlaundry.wsgi --log-file -
+    disk:
+      name: sqlite-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: BREVO_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: DJANGO_ALLOWED_HOSTS
+        value: rrlaundry.onrender.com,127.0.0.1,localhost
+      - key: DATABASE_URL
+        value: sqlite:////data/db.sqlite3

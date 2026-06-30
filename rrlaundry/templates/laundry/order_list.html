@@ -1,0 +1,121 @@
+{% extends "laundry/base_laundry.html" %}
+{% block page_title %}Orders{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="page-heading">Incoming Orders</h1>
+    <p class="page-subtitle mb-0">{{ page_obj.paginator.count }} order{{ 's' if page_obj.paginator.count != 1 else '' }} assigned to {{ profile.business_name }}</p>
+  </div>
+</div>
+
+{# ── Filter bar ── #}
+<form method="get" class="card-section mb-4">
+  <div class="row g-3 align-items-end">
+    <div class="col-12 col-sm-4">
+      <label class="form-label-sm">Status</label>
+      <select class="form-select" name="status" style="border-radius:6px;font-size:12px;border-color:#d8e6f5;">
+        <option value="">All Statuses</option>
+        {% for val, label in order_status_choices %}
+        <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto d-flex gap-2">
+      <button type="submit" class="btn btn-accent" style="font-size:12px;padding:8px 20px;">Filter</button>
+      {% if status_filter %}
+      <a href="{{ url('laundry_order_list') }}" class="btn btn-outline-secondary" style="font-size:12px;border-radius:6px;">Reset</a>
+      {% endif %}
+    </div>
+  </div>
+</form>
+
+{# ── Orders table ── #}
+<div class="card-section p-0">
+  {% if page_obj.object_list %}
+  <div class="table-responsive">
+    <table class="table table-portal mb-0">
+      <thead>
+        <tr>
+          <th style="padding-left:1.5rem;">Order ID</th>
+          <th>Hospital</th>
+          <th>Items</th>
+          <th>Status</th>
+          <th>Delivery Partner</th>
+          <th>Created</th>
+          <th>Updated</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for order in page_obj.object_list %}
+        {% set s = order.status %}
+        <tr>
+          <td style="padding-left:1.5rem;">
+            <code style="font-size:12px;color:#003580;font-weight:600;">#{{ order.short_id }}</code>
+          </td>
+          <td style="font-weight:500;color:#1e3a6e;">{{ order.hospital.hospital_name }}</td>
+          <td style="color:#444;">{{ order.items.count() }}</td>
+          <td>
+            {% if s == 'CREATED' %}<span class="status-badge sb-created">Created</span>
+            {% elif s == 'PICKUP_DONE' %}<span class="status-badge sb-pickup">Picked Up</span>
+            {% elif s == 'AT_LAUNDRY' %}<span class="status-badge sb-laundry">At Laundry</span>
+            {% elif s == 'DISPATCHED' %}<span class="status-badge sb-dispatch">Dispatched</span>
+            {% elif s == 'DELIVERED' %}<span class="status-badge sb-delivered">Delivered</span>
+            {% elif s == 'COMPLETED' %}<span class="status-badge sb-completed">Completed</span>
+            {% elif s == 'FLAGGED' %}<span class="status-badge sb-flagged">Flagged</span>
+            {% else %}<span class="status-badge" style="background:#f0f0f0;color:#888;">{{ s }}</span>
+            {% endif %}
+          </td>
+          <td style="font-size:12px;color:#444;">
+            {% if order.delivery_partner %}
+              {{ order.delivery_partner.user.full_name or order.delivery_partner.user.email }}
+            {% else %}—{% endif %}
+          </td>
+          <td style="color:#888;font-size:12px;">{{ order.created_at.strftime('%d %b %Y') }}</td>
+          <td style="color:#888;font-size:12px;">{{ order.updated_at.strftime('%d %b %Y') }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="padding:3rem;text-align:center;color:#888;font-size:14px;">
+    No orders found{% if status_filter %} with status "{{ status_filter }}"{% endif %}.
+  </div>
+  {% endif %}
+</div>
+
+{# ── Pagination ── #}
+{% if page_obj.paginator.num_pages > 1 %}
+<div class="d-flex align-items-center justify-content-between mt-3 flex-wrap gap-2" style="font-size:12px;color:#888;">
+  <div>Showing {{ page_obj.start_index() }}–{{ page_obj.end_index() }} of {{ page_obj.paginator.count }}</div>
+  <nav>
+    <ul class="pagination mb-0" style="--bs-pagination-font-size:.75rem;--bs-pagination-padding-x:.6rem;--bs-pagination-padding-y:.3rem;">
+      {% if page_obj.has_previous() %}
+      <li class="page-item">
+        <a class="page-link" href="?page={{ page_obj.previous_page_number() }}&{{ query_string }}">‹ Prev</a>
+      </li>
+      {% endif %}
+      {% for num in page_obj.paginator.page_range %}
+        {% if num == page_obj.number %}
+        <li class="page-item active">
+          <span class="page-link" style="background:var(--accent);border-color:var(--accent);">{{ num }}</span>
+        </li>
+        {% elif num == 1 or num == page_obj.paginator.num_pages or (num >= page_obj.number - 2 and num <= page_obj.number + 2) %}
+        <li class="page-item"><a class="page-link" href="?page={{ num }}&{{ query_string }}">{{ num }}</a></li>
+        {% elif num == page_obj.number - 3 or num == page_obj.number + 3 %}
+        <li class="page-item disabled"><span class="page-link">…</span></li>
+        {% endif %}
+      {% endfor %}
+      {% if page_obj.has_next() %}
+      <li class="page-item">
+        <a class="page-link" href="?page={{ page_obj.next_page_number() }}&{{ query_string }}">Next ›</a>
+      </li>
+      {% endif %}
+    </ul>
+  </nav>
+</div>
+{% endif %}
+
+{% endblock %}

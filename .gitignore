@@ -1,0 +1,9 @@
+# Root-level ignores
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
+Thumbs.db
+
+# Project-level ignores handled by rrlaundry/.gitignore

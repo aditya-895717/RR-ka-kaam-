@@ -1,0 +1,146 @@
+{% extends "laundry/base_laundry.html" %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="page-heading">Welcome, {{ request.user.get_short_name() }}</h1>
+    <p class="page-subtitle mb-0">{{ profile.business_name }} — Processing Overview</p>
+  </div>
+  <a href="{{ url('laundry_floor') }}" class="btn btn-accent">View Floor →</a>
+</div>
+
+{# ── Top stats ── #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-3">
+    <div class="stat-mini">
+      <div class="lbl">Total on Floor</div>
+      <div class="value" style="color: var(--accent);">{{ total_on_floor }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-mini">
+      <div class="lbl">Active Orders</div>
+      <div class="value">{{ active_orders }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-mini">
+      <div class="lbl">Received Today</div>
+      <div class="value">{{ received_today }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-lg-3">
+    <div class="stat-mini">
+      <div class="lbl">Dispatched Today</div>
+      <div class="value">{{ dispatched_today }}</div>
+    </div>
+  </div>
+</div>
+
+{# ── Alert banner ── #}
+{% if unresolved_alerts > 0 %}
+<div class="alert alert-portal mb-4" style="background:var(--accent-light);border:.5px solid #f5c0c0;color:var(--accent);">
+  <strong>{{ unresolved_alerts }} unresolved alert{{ 's' if unresolved_alerts != 1 else '' }}.</strong>
+  Items have been idle for over 1 hour on the floor.
+  <a href="{{ url('laundry_alerts') }}" class="ms-2" style="color:var(--accent);font-weight:700;">View Alerts →</a>
+</div>
+{% endif %}
+
+{# ── Stage pipeline ── #}
+<div class="card-section mb-4">
+  <div class="card-section-title">Stage Pipeline — Items on Floor</div>
+
+  {# Pipeline bar #}
+  {% set stages = [
+    ('RECEIVED', 'Received',         'sb-received', '#0055b3'),
+    ('SORTING',  'Sorting',          'sb-sorting',  '#b45309'),
+    ('WASHING',  'Washing',          'sb-washing',  '#0369a1'),
+    ('DRYING',   'Drying',           'sb-drying',   '#6d28d9'),
+    ('FOLDING',  'Folding',          'sb-folding',  '#0e7a52'),
+    ('READY',    'Ready',            'sb-ready',    '#166534'),
+  ] %}
+
+  <div class="d-flex align-items-stretch gap-2 flex-wrap">
+    {% for key, label, badge_cls, color in stages %}
+    {% set cnt = stage_counts.get(key, 0) %}
+    <div style="flex:1;min-width:100px;background:#f8fafc;border:.5px solid #e5eaf2;border-radius:8px;padding:14px 16px;text-align:center;
+                {% if cnt > 0 %}border-color: {{ color }}33;background: {{ color }}0d;{% endif %}">
+      <div class="stage-badge {{ badge_cls }} mb-2">{{ label }}</div>
+      <div style="font-size:1.6rem;font-weight:700;color:{% if cnt > 0 %}{{ color }}{% else %}#ccc{% endif %};">
+        {{ cnt }}
+      </div>
+      <div style="font-size:10px;color:#aaa;">item{{ 's' if cnt != 1 else '' }}</div>
+    </div>
+    {% if not loop.last %}
+    <div style="display:flex;align-items:center;color:#ccc;font-size:18px;flex-shrink:0;">›</div>
+    {% endif %}
+    {% endfor %}
+  </div>
+</div>
+
+{# ── Recent activity + Quick actions ── #}
+<div class="row g-3">
+  <div class="col-12 col-lg-8">
+    <div class="card-section">
+      <div class="d-flex align-items-center justify-content-between mb-3">
+        <div class="card-section-title mb-0">Recent Floor Activity</div>
+        <a href="{{ url('laundry_floor') }}" style="font-size:12px;color:var(--accent);text-decoration:none;font-weight:600;">
+          Full View →
+        </a>
+      </div>
+      {% if recent_logs %}
+      <div class="table-responsive">
+        <table class="table table-portal mb-0">
+          <thead>
+            <tr><th>Tag</th><th>Stage</th><th>Updated By</th><th>Time</th></tr>
+          </thead>
+          <tbody>
+            {% for log in recent_logs %}
+            <tr>
+              <td><code style="font-size:12px;color:#003580;">{{ log.order_item.tag_number }}</code></td>
+              <td>
+                {% if log.stage == 'RECEIVED' %}<span class="stage-badge sb-received">Received</span>
+                {% elif log.stage == 'SORTING' %}<span class="stage-badge sb-sorting">Sorting</span>
+                {% elif log.stage == 'WASHING' %}<span class="stage-badge sb-washing">Washing</span>
+                {% elif log.stage == 'DRYING' %}<span class="stage-badge sb-drying">Drying</span>
+                {% elif log.stage == 'FOLDING' %}<span class="stage-badge sb-folding">Folding</span>
+                {% elif log.stage == 'READY' %}<span class="stage-badge sb-ready">Ready</span>
+                {% endif %}
+              </td>
+              <td style="color:#444;font-size:12px;">{{ log.updated_by.get_short_name() if log.updated_by else '—' }}</td>
+              <td style="color:#888;font-size:12px;">{{ log.updated_at.strftime('%d %b, %H:%M') }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div style="padding:2rem;text-align:center;color:#aaa;font-size:13px;">
+        No floor activity yet. Items will appear here once received.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-4">
+    <div class="card-section">
+      <div class="card-section-title">Quick Actions</div>
+      <div class="d-grid gap-2">
+        <a href="{{ url('laundry_floor') }}" class="btn btn-accent">Processing Floor</a>
+        <a href="{{ url('laundry_alerts') }}" class="btn btn-outline-secondary {% if unresolved_alerts > 0 %}text-danger border-danger{% endif %}"
+           style="font-size:13px;border-radius:6px;">
+          {% if unresolved_alerts > 0 %}Alerts ({{ unresolved_alerts }}){% else %}Alerts{% endif %}
+        </a>
+        <a href="{{ url('laundry_order_list') }}" class="btn btn-outline-secondary" style="font-size:13px;border-radius:6px;">All Orders</a>
+        <a href="{{ url('laundry_workers') }}" class="btn btn-outline-secondary" style="font-size:13px;border-radius:6px;">Manage Workers</a>
+        <a href="{{ url('laundry_pricing') }}" class="btn btn-outline-secondary" style="font-size:13px;border-radius:6px;">
+          Pricing — ₹{{ profile.price_per_item }}/item
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

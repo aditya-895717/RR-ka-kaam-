@@ -1,0 +1,108 @@
+{% extends "base_portal.html" %}
+
+{% block title %}Delivery — RR Laundry{% endblock %}
+
+{% block extra_head %}
+<style>
+  :root { --accent: #C41A1A; }
+
+  /* Status badges */
+  .jb-assigned    { background: #1a2a4a; color: #6baed6; }
+  .jb-in_progress { background: #2a1a00; color: #ffa500; }
+  .jb-completed   { background: #0a2a0a; color: #4caf50; }
+  .jb-pickup      { background: #1a1a2a; color: #9c88ff; }
+  .jb-delivery    { background: #1a2a1a; color: #69db7c; }
+
+  .job-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .4px;
+    text-transform: uppercase;
+  }
+
+  /* Scan interface */
+  .scan-zone {
+    border: 2px dashed var(--accent);
+    border-radius: 6px;
+    background: #111;
+    padding: 32px 24px;
+    text-align: center;
+  }
+  .scan-zone.active {
+    border-style: solid;
+    background: #1a0505;
+    animation: scan-pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes scan-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(196,26,26,.4); }
+    50%       { box-shadow: 0 0 0 8px rgba(196,26,26,0); }
+  }
+  .scan-count {
+    font-size: 48px;
+    font-weight: 700;
+    color: var(--accent);
+    line-height: 1;
+  }
+  .tag-pill {
+    display: inline-block;
+    background: #1e1e1e;
+    border: 1px solid #333;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-family: monospace;
+    color: #ccc;
+    margin: 3px;
+  }
+  .tag-pill.new { border-color: var(--accent); color: #fff; }
+
+  /* Mobile-first scan buttons */
+  .btn-scan-action {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 6px;
+  }
+</style>
+{% endblock %}
+
+{% block sidebar_brand %}
+<div style="font-weight: 700; font-size: 18px; color: #fff; line-height: 1.1;">RR Laundry</div>
+<div style="font-size: 11px; color: rgba(255,255,255,.4); margin-top: 3px;">Delivery Portal</div>
+{% endblock %}
+
+{% block sidebar_nav %}
+{% set p = request.path %}
+
+<a href="{{ url('delivery_dashboard') }}"
+   class="sidebar-link {% if p == '/delivery/' or p.startswith('/delivery/') and not p.startswith('/delivery/jobs') and not p.startswith('/delivery/scan') and not p.startswith('/delivery/history') %}active{% endif %}">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+    <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+  </svg>
+  Dashboard
+</a>
+
+<a href="{{ url('delivery_job_list') }}"
+   class="sidebar-link {% if p.startswith('/delivery/jobs/') %}active{% endif %}">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"/>
+    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+  </svg>
+  My Jobs
+</a>
+
+<a href="{{ url('delivery_job_history') }}"
+   class="sidebar-link {% if p.startswith('/delivery/history/') %}active{% endif %}">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <polyline points="12 6 12 12 16 14"/>
+  </svg>
+  Job History
+</a>
+
+{% endblock %}

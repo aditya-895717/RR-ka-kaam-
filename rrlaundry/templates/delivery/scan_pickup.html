@@ -1,0 +1,190 @@
+{% extends "delivery/base_delivery.html" %}
+
+{% block page_title %}Scan Pickup — #{{ job.short_id }}{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+  <a href="{{ url('delivery_job_list') }}" style="font-size:12px;color:#777;text-decoration:none;">← Back to Jobs</a>
+</div>
+
+{# ── Job meta ── #}
+<div class="card-section mb-4" style="padding:14px 18px;">
+  <div class="row g-3">
+    <div class="col-6 col-md-3">
+      <div style="font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.5px;">Hospital</div>
+      <div style="font-size:14px;font-weight:600;color:#fff;margin-top:3px;">{{ job.order.hospital.hospital_name }}</div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div style="font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.5px;">Order</div>
+      <div style="font-size:14px;font-weight:600;color:#fff;margin-top:3px;">#{{ job.order.short_id }}</div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div style="font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.5px;">Expected Items</div>
+      <div style="font-size:14px;font-weight:600;color:#fff;margin-top:3px;" id="expected-count">{{ expected_items|length }}</div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div style="font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.5px;">Status</div>
+      <div style="margin-top:3px;"><span class="job-badge jb-{{ job.status|lower }}">{{ job.get_status_display() }}</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+
+  {# ── Scan zone ── #}
+  <div class="col-12 col-lg-7">
+    <div class="card-section">
+      <h6 style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:#a0a0a0;margin-bottom:16px;">
+        Scan Tags — S1 Pickup
+      </h6>
+
+      <div class="scan-zone" id="scan-zone">
+        <div id="scan-icon" style="margin-bottom:12px;opacity:.5;">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+            <path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+            <rect x="7" y="7" width="10" height="10" rx="1"/>
+          </svg>
+        </div>
+        <div class="scan-count" id="scan-count">0</div>
+        <div style="font-size:13px;color:#777;margin-top:6px;">items scanned</div>
+        <div style="font-size:11px;color:#555;margin-top:10px;" id="scanner-status">Point C72 scanner and scan tags</div>
+      </div>
+
+      {# Tag list #}
+      <div id="tag-list" style="margin-top:14px;max-height:220px;overflow-y:auto;"></div>
+
+      {# Alert area #}
+      <div id="scan-alert" style="display:none;margin-top:10px;padding:10px 14px;border-radius:5px;font-size:12px;"></div>
+    </div>
+  </div>
+
+  {# ── Expected items checklist ── #}
+  <div class="col-12 col-lg-5">
+    <div class="card-section" style="max-height:520px;overflow-y:auto;">
+      <h6 style="font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:#a0a0a0;margin-bottom:12px;">
+        Expected Items ({{ expected_items|length }})
+      </h6>
+      {% if expected_items %}
+        {% for item in expected_items %}
+        <div id="chk-{{ item.tag_number }}" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #1a1a1a;">
+          <div id="dot-{{ item.tag_number }}" style="width:8px;height:8px;border-radius:50%;background:#333;flex-shrink:0;"></div>
+          <div>
+            <div style="font-size:12px;font-family:monospace;color:#ccc;">{{ item.tag_number }}</div>
+            <div style="font-size:11px;color:#666;">{{ item.item_type }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="color:#555;font-size:13px;">No items on this order.</div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+{# ── Submit form ── #}
+<form method="post" action="{{ url('delivery_scan_pickup', job_id=job.job_id) }}" id="scan-form" style="margin-top:24px;">
+  {% csrf_token %}
+  <input type="hidden" name="scanned_tags" id="scanned-tags-input" value="[]">
+  <div class="row g-3">
+    <div class="col-12 col-md-6">
+      <button type="button" id="btn-clear"
+              class="btn btn-scan-action"
+              style="background:#1a1a1a;color:#aaa;border:1px solid #333;">
+        Clear All Tags
+      </button>
+    </div>
+    <div class="col-12 col-md-6">
+      <button type="submit" id="btn-complete"
+              class="btn btn-scan-action"
+              style="background:var(--accent);color:#fff;border:none;"
+              disabled>
+        Complete Pickup (<span id="btn-count">0</span> items)
+      </button>
+    </div>
+  </div>
+</form>
+
+<script src="{{ static('js/rfid_scanner.js') }}"></script>
+<script>
+const scannedTags = [];
+const tagSet = new Set();
+const expectedSet = new Set({{ expected_items | map(attribute='tag_number') | list | tojson }});
+
+const countEl     = document.getElementById('scan-count');
+const btnCount    = document.getElementById('btn-count');
+const btnComplete = document.getElementById('btn-complete');
+const tagListEl   = document.getElementById('tag-list');
+const alertEl     = document.getElementById('scan-alert');
+const scanZone    = document.getElementById('scan-zone');
+const statusEl    = document.getElementById('scanner-status');
+const input       = document.getElementById('scanned-tags-input');
+
+function showAlert(msg, type) {
+  alertEl.textContent = msg;
+  alertEl.style.display = 'block';
+  alertEl.style.background = type === 'warn' ? '#2a1a00' : '#1a0a0a';
+  alertEl.style.color = type === 'warn' ? '#ffa500' : '#ff6b6b';
+  alertEl.style.border = '1px solid ' + (type === 'warn' ? '#ffa500' : 'var(--accent)');
+  setTimeout(() => { alertEl.style.display = 'none'; }, 3000);
+}
+
+function updateUI() {
+  const n = scannedTags.length;
+  countEl.textContent = n;
+  btnCount.textContent = n;
+  btnComplete.disabled = n === 0;
+  input.value = JSON.stringify(scannedTags);
+}
+
+function addTag(tag) {
+  const pill = document.createElement('span');
+  pill.className = 'tag-pill new';
+  pill.id = 'pill-' + tag;
+  pill.textContent = tag;
+  tagListEl.prepend(pill);
+
+  const dot = document.getElementById('dot-' + tag);
+  if (dot) dot.style.background = '#4caf50';
+
+  scanZone.classList.add('active');
+  setTimeout(() => pill.classList.remove('new'), 1500);
+}
+
+const scanner = new RFIDScanner({
+  onScan: (tag) => {
+    scannedTags.push(tag);
+    tagSet.add(tag);
+    addTag(tag);
+    updateUI();
+    statusEl.textContent = 'Last scan: ' + tag;
+  },
+  onDuplicate: (tag) => {
+    showAlert('Duplicate: ' + tag + ' already scanned.', 'warn');
+  },
+  onInvalid: (raw) => {
+    showAlert('Invalid tag format: ' + raw, 'error');
+  },
+});
+scanner.start();
+statusEl.textContent = 'Scanner ready — scan tags';
+
+document.getElementById('btn-clear').addEventListener('click', () => {
+  scannedTags.length = 0;
+  tagSet.clear();
+  tagListEl.innerHTML = '';
+  scanZone.classList.remove('active');
+  scanner.clearTags();
+  expectedSet.forEach(tag => {
+    const dot = document.getElementById('dot-' + tag);
+    if (dot) dot.style.background = '#333';
+  });
+  updateUI();
+});
+
+document.getElementById('scan-form').addEventListener('submit', () => {
+  input.value = JSON.stringify(scannedTags);
+});
+</script>
+{% endblock %}

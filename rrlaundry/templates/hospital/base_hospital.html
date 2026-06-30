@@ -1,0 +1,118 @@
+{% extends "base_portal.html" %}
+
+{% block title %}{{ profile.hospital_name if profile else 'Hospital' }} — RR Laundry{% endblock %}
+
+{% block extra_css %}
+<style>
+  :root { --accent: #C41A1A; --accent-h: #a31515; --accent-light: #fff0f0; }
+
+  .btn-accent        { background: var(--accent); color: #fff; border: none; border-radius: 6px; font-weight: 600; padding: 8px 18px; transition: background .15s; }
+  .btn-accent:hover  { background: var(--accent-h); color: #fff; }
+  .btn-accent-sm     { background: var(--accent); color: #fff; border: none; border-radius: 5px; font-weight: 600; font-size: 12px; padding: 5px 12px; }
+  .btn-accent-sm:hover { background: var(--accent-h); color: #fff; }
+
+  .status-badge {
+    display: inline-flex; align-items: center;
+    font-size: 11px; font-weight: 600; letter-spacing: .3px;
+    border-radius: 20px; padding: 3px 10px; white-space: nowrap;
+  }
+  .sb-created   { background: #e8f4ff; color: #0055b3; }
+  .sb-pickup    { background: #e6f9f3; color: #0e7a52; }
+  .sb-laundry   { background: #fff7e6; color: #b45309; }
+  .sb-dispatch  { background: #f3eeff; color: #6d28d9; }
+  .sb-delivered { background: #e6f7ef; color: #166534; }
+  .sb-completed { background: #e6edf9; color: #1e3a6e; }
+  .sb-flagged   { background: var(--accent-light); color: var(--accent); }
+
+  .table-portal { font-size: 13px; }
+  .table-portal thead th { font-size: 11px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; color: #6b7280; border-bottom: 1.5px solid #e5eaf2; background: #f8fafc; padding: 10px 14px; }
+  .table-portal tbody td { padding: 12px 14px; vertical-align: middle; border-bottom: 1px solid #f0f4f8; color: #333; }
+  .table-portal tbody tr:hover td { background: #fafbfc; }
+
+  .card-section { background: #fff; border: .5px solid #d8e6f5; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.25rem; }
+  .card-section-title { font-size: 13px; font-weight: 600; color: #003580; margin-bottom: 1rem; }
+
+  .form-label-sm { font-size: 12px; font-weight: 500; color: #555; margin-bottom: 4px; }
+
+  .alert-portal { border-radius: 8px; font-size: 13px; padding: 12px 16px; }
+</style>
+{% endblock %}
+
+{% block sidebar_brand %}
+<div style="font-weight: 700; font-size: 18px; color: #fff; line-height: 1.1;">RR Laundry</div>
+<div style="font-size: 11px; color: rgba(255,255,255,.4); margin-top: 3px;">Hospital Portal</div>
+{% endblock %}
+
+{% block sidebar_nav %}
+{% set p = request.path %}
+
+<a href="/hospital/dashboard/"
+   class="sidebar-link {% if p.startswith('/hospital/dashboard/') %}active{% endif %}">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+    <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+  </svg>
+  Dashboard
+</a>
+
+<a href="#"
+   class="sidebar-link {% if p.startswith('/hospital/orders/new') %}active{% endif %}">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="10"/>
+    <line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+  </svg>
+  New Order
+</a>
+
+<a href="#"
+   class="sidebar-link {% if p.startswith('/hospital/orders/') and not p.startswith('/hospital/orders/new') %}active{% endif %}">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+    <circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="3" cy="18" r="1" fill="currentColor"/>
+  </svg>
+  Order History
+</a>
+
+<a href="#"
+   class="sidebar-link {% if p.startswith('/hospital/departments/') %}active{% endif %}">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/>
+    <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/>
+    <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/>
+    <line x1="10" y1="6" x2="10" y2="6.01"/><line x1="14" y1="6" x2="14" y2="6.01"/>
+    <line x1="10" y1="10" x2="10" y2="10.01"/><line x1="14" y1="10" x2="14" y2="10.01"/>
+    <line x1="10" y1="14" x2="10" y2="14.01"/><line x1="14" y1="14" x2="14" y2="14.01"/>
+  </svg>
+  Departments
+</a>
+
+<a href="#"
+   class="sidebar-link {% if p.startswith('/hospital/tracking/') %}active{% endif %}">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+    <path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+    <rect x="7" y="7" width="10" height="10" rx="1"/>
+  </svg>
+  Item Tracking
+</a>
+
+<a href="/billing/invoices/"
+   class="sidebar-link {% if p.startswith('/billing/invoices/') %}active{% endif %}">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+    <polyline points="14 2 14 8 20 8"/>
+    <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+  </svg>
+  Invoices
+</a>
+
+<a href="#"
+   class="sidebar-link {% if p.startswith('/hospital/settings/') %}active{% endif %}">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </svg>
+  Settings
+</a>
+
+{% endblock %}

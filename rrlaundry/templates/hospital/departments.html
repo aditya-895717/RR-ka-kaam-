@@ -1,0 +1,152 @@
+{% extends "hospital/base_hospital.html" %}
+{% block page_title %}Departments{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="page-heading">Departments</h1>
+    <p class="page-subtitle mb-0">{{ departments|length }} department{{ 's' if departments|length != 1 else '' }}</p>
+  </div>
+  {% if is_head %}
+  <button class="btn btn-accent" data-bs-toggle="modal" data-bs-target="#addDeptModal">+ Add Department</button>
+  {% endif %}
+</div>
+
+{% if messages %}
+{% for msg in messages %}
+<div class="alert alert-portal {% if msg.tags == 'error' %}alert-danger{% else %}alert-success{% endif %} mb-3">
+  {{ msg }}
+</div>
+{% endfor %}
+{% endif %}
+
+<div class="card-section p-0">
+  {% if departments %}
+  <div class="table-responsive">
+    <table class="table table-portal mb-0">
+      <thead>
+        <tr>
+          <th style="padding-left:1.5rem;">Department Name</th>
+          <th>Orders</th>
+          <th>Created</th>
+          {% if is_head %}<th style="width:120px;"></th>{% endif %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for dept in departments %}
+        <tr>
+          <td style="padding-left:1.5rem;font-weight:500;color:#1e3a6e;">{{ dept.department_name }}</td>
+          <td>{{ dept.orders.count() }}</td>
+          <td style="color:#888;">{{ dept.created_at.strftime('%d %b %Y') }}</td>
+          {% if is_head %}
+          <td>
+            <button class="btn btn-sm btn-outline-secondary me-1" style="font-size:11px;border-radius:5px;padding:3px 10px;"
+              data-bs-toggle="modal" data-bs-target="#editDeptModal{{ dept.id }}">
+              Edit
+            </button>
+            <button class="btn btn-sm" style="font-size:11px;border-radius:5px;padding:3px 10px;background:var(--accent-light);color:var(--accent);border:1px solid #f5c0c0;"
+              data-bs-toggle="modal" data-bs-target="#delDeptModal{{ dept.id }}">
+              Delete
+            </button>
+          </td>
+          {% endif %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="padding:3rem;text-align:center;color:#888;font-size:14px;">
+    No departments yet.
+    {% if is_head %}Click <strong>Add Department</strong> to create one.{% endif %}
+  </div>
+  {% endif %}
+</div>
+
+{% if is_head %}
+
+{# ── Add Modal ── #}
+<div class="modal fade" id="addDeptModal" tabindex="-1" aria-labelledby="addDeptLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+    <div class="modal-content" style="border-radius:8px;border:.5px solid #d8e6f5;">
+      <form method="post">
+        {{ csrf_input }}
+        <input type="hidden" name="action" value="add">
+        <div class="modal-header" style="border-bottom:.5px solid #e8eef5;padding:1.1rem 1.5rem;">
+          <h5 class="modal-title" id="addDeptLabel" style="font-size:14px;font-weight:700;color:#1e3a6e;">New Department</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="width:18px;height:18px;opacity:.5;"></button>
+        </div>
+        <div class="modal-body" style="padding:1.25rem 1.5rem;">
+          <label class="form-label-sm" for="addName">Department Name</label>
+          <input type="text" class="form-control" id="addName" name="department_name"
+                 placeholder="e.g. ICU, OT, Maternity" required
+                 style="border-radius:6px;font-size:13px;border-color:#d8e6f5;">
+        </div>
+        <div class="modal-footer" style="border-top:.5px solid #e8eef5;padding:.9rem 1.5rem;">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal" style="border-radius:5px;font-size:12px;">Cancel</button>
+          <button type="submit" class="btn btn-accent btn-sm" style="font-size:12px;padding:6px 16px;">Add Department</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ── Edit + Delete Modals per dept ── #}
+{% for dept in departments %}
+
+{# Edit #}
+<div class="modal fade" id="editDeptModal{{ dept.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+    <div class="modal-content" style="border-radius:8px;border:.5px solid #d8e6f5;">
+      <form method="post">
+        {{ csrf_input }}
+        <input type="hidden" name="action" value="edit">
+        <input type="hidden" name="dept_id" value="{{ dept.id }}">
+        <div class="modal-header" style="border-bottom:.5px solid #e8eef5;padding:1.1rem 1.5rem;">
+          <h5 class="modal-title" style="font-size:14px;font-weight:700;color:#1e3a6e;">Edit Department</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="width:18px;height:18px;opacity:.5;"></button>
+        </div>
+        <div class="modal-body" style="padding:1.25rem 1.5rem;">
+          <label class="form-label-sm">Department Name</label>
+          <input type="text" class="form-control" name="department_name"
+                 value="{{ dept.department_name }}" required
+                 style="border-radius:6px;font-size:13px;border-color:#d8e6f5;">
+        </div>
+        <div class="modal-footer" style="border-top:.5px solid #e8eef5;padding:.9rem 1.5rem;">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal" style="border-radius:5px;font-size:12px;">Cancel</button>
+          <button type="submit" class="btn btn-accent btn-sm" style="font-size:12px;padding:6px 16px;">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{# Delete #}
+<div class="modal fade" id="delDeptModal{{ dept.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:400px;">
+    <div class="modal-content" style="border-radius:8px;border:.5px solid #d8e6f5;">
+      <form method="post">
+        {{ csrf_input }}
+        <input type="hidden" name="action" value="delete">
+        <input type="hidden" name="dept_id" value="{{ dept.id }}">
+        <div class="modal-header" style="border-bottom:.5px solid #e8eef5;padding:1.1rem 1.5rem;">
+          <h5 class="modal-title" style="font-size:14px;font-weight:700;color:var(--accent);">Delete Department?</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" style="width:18px;height:18px;opacity:.5;"></button>
+        </div>
+        <div class="modal-body" style="padding:1.25rem 1.5rem;font-size:13px;color:#444;">
+          Delete <strong>{{ dept.department_name }}</strong>? Orders linked to this department will lose their department reference.
+        </div>
+        <div class="modal-footer" style="border-top:.5px solid #e8eef5;padding:.9rem 1.5rem;">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal" style="border-radius:5px;font-size:12px;">Cancel</button>
+          <button type="submit" class="btn btn-sm" style="background:var(--accent);color:#fff;border:none;border-radius:5px;font-size:12px;padding:6px 16px;">Delete</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endfor %}
+{% endif %}
+
+{% endblock %}

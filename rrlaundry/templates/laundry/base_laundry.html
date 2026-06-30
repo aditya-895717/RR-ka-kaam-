@@ -1,0 +1,302 @@
+{% extends "base_portal.html" %}
+
+{% block title %}{{ profile.business_name if profile else 'Laundry' }} — RR Laundry{% endblock %}
+
+{% block extra_css %}
+<style>
+  :root { --accent: #C41A1A; --accent-h: #a31515; --accent-light: #fff0f0; }
+
+  .btn-accent        { background: var(--accent); color: #fff; border: none; border-radius: 6px; font-weight: 600; padding: 8px 18px; transition: background .15s; }
+  .btn-accent:hover  { background: var(--accent-h); color: #fff; }
+  .btn-accent-sm     { background: var(--accent); color: #fff; border: none; border-radius: 5px; font-weight: 600; font-size: 12px; padding: 5px 12px; }
+  .btn-accent-sm:hover { background: var(--accent-h); color: #fff; }
+
+  .card-section { background: #fff; border: .5px solid #d8e6f5; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.25rem; }
+  .card-section-title { font-size: 13px; font-weight: 600; color: #003580; margin-bottom: 1rem; }
+
+  .table-portal { font-size: 13px; }
+  .table-portal thead th { font-size: 11px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; color: #6b7280; border-bottom: 1.5px solid #e5eaf2; background: #f8fafc; padding: 10px 14px; }
+  .table-portal tbody td { padding: 12px 14px; vertical-align: middle; border-bottom: 1px solid #f0f4f8; color: #333; }
+  .table-portal tbody tr:hover td { background: #fafbfc; }
+
+  .alert-portal { border-radius: 8px; font-size: 13px; padding: 12px 16px; }
+  .form-label-sm { font-size: 12px; font-weight: 500; color: #555; margin-bottom: 4px; }
+
+  /* Stage badges */
+  .stage-badge { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; letter-spacing: .3px; border-radius: 20px; padding: 3px 10px; white-space: nowrap; }
+  .sb-received { background: #e8f4ff; color: #0055b3; }
+  .sb-sorting  { background: #fff7e6; color: #b45309; }
+  .sb-washing  { background: #e8f9ff; color: #0369a1; }
+  .sb-drying   { background: #f3eeff; color: #6d28d9; }
+  .sb-folding  { background: #e6f9f3; color: #0e7a52; }
+  .sb-ready    { background: #e6f7ef; color: #166534; }
+  .sb-alert    { background: var(--accent-light); color: var(--accent); }
+
+  /* Order status badges */
+  .status-badge { display: inline-flex; align-items: center; font-size: 11px; font-weight: 600; border-radius: 20px; padding: 3px 10px; white-space: nowrap; }
+  .sb-created   { background: #e8f4ff; color: #0055b3; }
+  .sb-pickup    { background: #e6f9f3; color: #0e7a52; }
+  .sb-laundry   { background: #fff7e6; color: #b45309; }
+  .sb-dispatch  { background: #f3eeff; color: #6d28d9; }
+  .sb-delivered { background: #e6f7ef; color: #166534; }
+  .sb-completed { background: #e6edf9; color: #1e3a6e; }
+  .sb-flagged   { background: var(--accent-light); color: var(--accent); }
+
+  /* Alert pulse for unresolved items */
+  .alert-pulse { animation: alertPulse 1.8s ease-in-out infinite; }
+  @keyframes alertPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(196, 26, 26, .25); }
+    50%       { box-shadow: 0 0 0 6px rgba(196, 26, 26, 0); }
+  }
+
+  /* ── Notification bell ── */
+  .notif-wrap { position: relative; }
+  .notif-btn {
+    background: none; border: none; cursor: pointer;
+    padding: 6px; border-radius: 6px; color: #555;
+    position: relative; display: flex; align-items: center;
+    transition: background .15s;
+  }
+  .notif-btn:hover { background: var(--light); color: var(--navy); }
+  .notif-badge {
+    position: absolute; top: 0; right: 0;
+    min-width: 17px; height: 17px; border-radius: 9px;
+    background: var(--accent); color: #fff;
+    font-size: 10px; font-weight: 700; line-height: 17px;
+    text-align: center; padding: 0 4px;
+    display: none;
+  }
+  .notif-dropdown {
+    position: absolute; top: calc(100% + 8px); right: 0;
+    width: 320px; background: #fff;
+    border: 1px solid #e0eaf4; border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12);
+    z-index: 200; display: none;
+    overflow: hidden;
+  }
+  .notif-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 14px; border-bottom: 1px solid #f0f4f8;
+    font-size: 13px; font-weight: 600; color: #1e3a6e;
+  }
+  .notif-read-all {
+    background: none; border: none; cursor: pointer;
+    font-size: 11px; color: var(--accent); font-weight: 600;
+    padding: 2px 6px; border-radius: 4px;
+    transition: background .12s;
+  }
+  .notif-read-all:hover { background: var(--accent-light); }
+  .notif-item {
+    padding: 10px 14px; border-bottom: 1px solid #f4f7fb;
+    cursor: pointer; transition: background .12s;
+  }
+  .notif-item:last-child { border-bottom: none; }
+  .notif-item:hover { background: #fafbfc; }
+  .notif-item-title { font-size: 12px; font-weight: 700; color: #1e3a6e; margin-bottom: 2px; }
+  .notif-item-tag { font-size: 11px; color: #555; font-family: monospace; }
+  .notif-item-time { font-size: 10px; color: #aaa; margin-top: 2px; }
+  .notif-empty { padding: 20px 14px; text-align: center; font-size: 12px; color: #aaa; }
+</style>
+{% endblock %}
+
+{% block topbar_right_extras %}
+<div class="notif-wrap" id="notifWrap">
+  <button class="notif-btn" id="notifBtn" aria-label="Notifications" type="button">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+    </svg>
+    <span class="notif-badge" id="notifBadge"></span>
+  </button>
+
+  <div class="notif-dropdown" id="notifDropdown">
+    <div class="notif-header">
+      <span>Notifications</span>
+      <button class="notif-read-all" id="notifReadAll" type="button">Mark all read</button>
+    </div>
+    <div id="notifList">
+      <div class="notif-empty">Loading…</div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}{{ super() }}
+<script>
+(function () {
+  'use strict';
+
+  var UNREAD_URL   = '/api/notifications/unread/';
+  var READ_ALL_URL = '/api/notifications/read-all/';
+  var READ_URL     = '/api/notifications/';
+
+  var btn      = document.getElementById('notifBtn');
+  var dropdown = document.getElementById('notifDropdown');
+  var badge    = document.getElementById('notifBadge');
+  var list     = document.getElementById('notifList');
+  var readAll  = document.getElementById('notifReadAll');
+  if (!btn) return;
+
+  function getCsrf() {
+    var m = document.cookie.match(/csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
+  }
+
+  function updateBadge(count) {
+    if (count > 0) {
+      badge.textContent = count > 99 ? '99+' : String(count);
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function renderList(notifications) {
+    if (!notifications.length) {
+      list.innerHTML = '<div class="notif-empty">No new notifications</div>';
+      return;
+    }
+    list.innerHTML = notifications.map(function (n) {
+      return (
+        '<div class="notif-item" data-id="' + n.id + '">' +
+          '<div class="notif-item-title">' + escHtml(n.title) + '</div>' +
+          (n.tag_number
+            ? '<div class="notif-item-tag">Tag: ' + escHtml(n.tag_number) + '</div>'
+            : '') +
+          '<div class="notif-item-time">' + escHtml(n.time_ago) + '</div>' +
+        '</div>'
+      );
+    }).join('');
+
+    list.querySelectorAll('.notif-item').forEach(function (el) {
+      el.addEventListener('click', function () {
+        fetch(READ_URL + el.dataset.id + '/read/', {
+          method: 'POST', credentials: 'same-origin',
+          headers: {'X-CSRFToken': getCsrf()},
+        }).then(refresh);
+      });
+    });
+  }
+
+  function refresh() {
+    fetch(UNREAD_URL, {credentials: 'same-origin'})
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (!data) return;
+        updateBadge(data.unread_count);
+        renderList(data.notifications);
+      })
+      .catch(function () {});
+  }
+
+  btn.addEventListener('click', function (e) {
+    e.stopPropagation();
+    dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+  });
+
+  readAll.addEventListener('click', function () {
+    fetch(READ_ALL_URL, {
+      method: 'POST', credentials: 'same-origin',
+      headers: {'X-CSRFToken': getCsrf()},
+    }).then(refresh);
+  });
+
+  document.addEventListener('click', function (e) {
+    if (!document.getElementById('notifWrap').contains(e.target)) {
+      dropdown.style.display = 'none';
+    }
+  });
+
+  refresh();
+  setInterval(refresh, 30000);
+})();
+</script>
+{% endblock %}
+
+{% block sidebar_brand %}
+<div style="font-weight: 700; font-size: 18px; color: #fff; line-height: 1.1;">RR Laundry</div>
+<div style="font-size: 11px; color: rgba(255,255,255,.4); margin-top: 3px;">Laundry Portal</div>
+{% endblock %}
+
+{% block sidebar_nav %}
+{% set p = request.path %}
+
+<a href="{{ url('laundry_dashboard') }}"
+   class="sidebar-link {% if p.startswith('/laundry/dashboard/') %}active{% endif %}">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+    <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+  </svg>
+  Dashboard
+</a>
+
+<a href="{{ url('laundry_floor') }}"
+   class="sidebar-link {% if p.startswith('/laundry/floor/') %}active{% endif %}">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 2 2 7l10 5 10-5-10-5z"/>
+    <path d="M2 17l10 5 10-5"/>
+    <path d="M2 12l10 5 10-5"/>
+  </svg>
+  Processing Floor
+</a>
+
+<a href="{{ url('laundry_order_list') }}"
+   class="sidebar-link {% if p.startswith('/laundry/orders/') %}active{% endif %}">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+    <circle cx="3" cy="6" r="1" fill="currentColor"/><circle cx="3" cy="12" r="1" fill="currentColor"/><circle cx="3" cy="18" r="1" fill="currentColor"/>
+  </svg>
+  Orders
+</a>
+
+<a href="{{ url('laundry_pricing') }}"
+   class="sidebar-link {% if p.startswith('/laundry/pricing/') %}active{% endif %}">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="12" y1="1" x2="12" y2="23"/>
+    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+  </svg>
+  Pricing
+</a>
+
+<a href="{{ url('laundry_workers') }}"
+   class="sidebar-link {% if p.startswith('/laundry/workers/') %}active{% endif %}">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+    <circle cx="9" cy="7" r="4"/>
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+  </svg>
+  Workers
+</a>
+
+<a href="{{ url('billing_laundry_invoice_list') }}"
+   class="sidebar-link {% if p.startswith('/billing/laundry/') %}active{% endif %}">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+    <polyline points="14 2 14 8 20 8"/>
+    <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+  </svg>
+  Invoices
+</a>
+
+<a href="{{ url('laundry_alerts') }}"
+   class="sidebar-link {% if p.startswith('/laundry/alerts/') %}active{% endif %}">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+  </svg>
+  Alerts
+  {% if unresolved_alerts and unresolved_alerts > 0 %}
+  <span style="margin-left:auto;background:var(--accent);color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:1px 7px;">
+    {{ unresolved_alerts }}
+  </span>
+  {% endif %}
+</a>
+
+{% endblock %}

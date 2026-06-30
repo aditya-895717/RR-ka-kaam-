@@ -1,0 +1,140 @@
+{% extends "laundry/base_laundry.html" %}
+{% block page_title %}Alerts{% endblock %}
+
+{% block extra_css %}{{ super() }}
+<style>
+  .alert-card {
+    background: #fff; border: .5px solid #f5c0c0; border-radius: 8px;
+    padding: 1.25rem 1.5rem; margin-bottom: .75rem;
+    border-left: 4px solid var(--accent);
+  }
+  .alert-card.resolved {
+    border-color: #d8e6f5; border-left-color: #8aabcc;
+    background: #fafbfc;
+  }
+  .alert-tag { font-family: monospace; font-size: 14px; font-weight: 700; color: #003580; }
+  .alert-meta { font-size: 12px; color: #888; }
+  .stale-time { font-size: 13px; font-weight: 600; color: var(--accent); }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="page-heading">Alerts</h1>
+    <p class="page-subtitle mb-0">
+      Items idle on the floor for more than 1 hour
+    </p>
+  </div>
+  {% if active_alerts %}
+  <div style="background:var(--accent-light);color:var(--accent);border-radius:6px;padding:6px 14px;font-size:13px;font-weight:600;">
+    {{ active_alerts|length }} active
+  </div>
+  {% endif %}
+</div>
+
+{# ── Active alerts ── #}
+{% if active_alerts %}
+<div class="mb-4">
+  <div class="card-section-title" style="font-size:13px;color:var(--accent);font-weight:700;margin-bottom:.75rem;padding-left:4px;">
+    Active Alerts
+  </div>
+  {% for alert in active_alerts %}
+  <div class="alert-card {% if not loop.first %}{% endif %}">
+    <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <span class="alert-tag">{{ alert.order_item.tag_number }}</span>
+          <span class="stage-badge
+            {% if alert.last_stage == 'RECEIVED' %}sb-received
+            {% elif alert.last_stage == 'SORTING' %}sb-sorting
+            {% elif alert.last_stage == 'WASHING' %}sb-washing
+            {% elif alert.last_stage == 'DRYING' %}sb-drying
+            {% elif alert.last_stage == 'FOLDING' %}sb-folding
+            {% endif %}">
+            {{ alert.last_stage }}
+          </span>
+        </div>
+        <div class="alert-meta mb-2" style="line-height:1.9;">
+          <span>
+            <span style="color:#555;">Last Status:</span>
+            <strong>{{ alert.get_last_stage_display() }}</strong>
+          </span>
+          &nbsp;·&nbsp;
+          <span>
+            <span style="color:#555;">Hospital:</span>
+            <strong>{{ alert.order_item.order.hospital.hospital_name }}</strong>
+          </span>
+          <br>
+          <span>
+            <span style="color:#555;">Last Updated:</span>
+            <strong>{{ alert.last_updated_at.strftime('%H:%M, %d %b') }}</strong>
+            <span style="color:#aaa;">({{ alert.stale_str }} ago)</span>
+          </span>
+          &nbsp;·&nbsp;
+          <span>
+            <span style="color:#555;">Assigned Worker:</span>
+            <strong>{{ alert.assigned_worker.full_name if alert.assigned_worker else '—' }}</strong>
+          </span>
+          <br>
+          <span>
+            <span style="color:#555;">Time Since Alert:</span>
+            <strong style="color:var(--accent);">{{ alert.triggered_str }}</strong>
+          </span>
+        </div>
+      </div>
+      <div class="d-flex flex-column align-items-end gap-2">
+        <form method="post">
+          {{ csrf_input }}
+          <input type="hidden" name="alert_id" value="{{ alert.id }}">
+          <button type="submit" class="btn btn-accent-sm">Mark Resolved</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card-section" style="text-align:center;padding:3rem;">
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#15803d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:12px;display:block;margin-left:auto;margin-right:auto;">
+    <polyline points="20 6 9 17 4 12"/>
+  </svg>
+  <div style="font-size:14px;font-weight:600;color:#15803d;margin-bottom:4px;">No active alerts</div>
+  <div style="font-size:13px;color:#888;">All items on the floor are progressing on time.</div>
+</div>
+{% endif %}
+
+{# ── Resolved alerts (recent 30) ── #}
+{% if resolved_alerts %}
+<div>
+  <div class="card-section-title" style="font-size:13px;color:#888;font-weight:600;margin-bottom:.75rem;padding-left:4px;">
+    Recently Resolved (last 30)
+  </div>
+  {% for alert in resolved_alerts %}
+  <div class="alert-card resolved">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <span class="alert-tag" style="color:#555;">{{ alert.order_item.tag_number }}</span>
+          <span class="stage-badge" style="background:#f0f0f0;color:#888;">{{ alert.last_stage }}</span>
+        </div>
+        <div class="alert-meta">
+          {{ alert.order_item.order.hospital.hospital_name }}
+          · Triggered {{ alert.triggered_at.strftime('%d %b, %H:%M') }}
+        </div>
+      </div>
+      <div style="font-size:12px;color:#15803d;font-weight:600;">
+        Resolved {{ alert.resolved_at.strftime('%d %b, %H:%M') if alert.resolved_at else '—' }}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}

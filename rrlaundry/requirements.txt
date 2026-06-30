@@ -1,0 +1,10 @@
+django>=4.2,<5.0
+djangorestframework>=3.14
+django-allauth[socialaccount]>=0.54
+django-cors-headers>=4.0
+python-decouple>=3.8
+sib-api-v3-sdk>=7.6
+gunicorn>=21.0
+whitenoise>=6.6
+django-q2>=1.6
+Jinja2>=3.1

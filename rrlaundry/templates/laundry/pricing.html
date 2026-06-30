@@ -1,0 +1,87 @@
+{% extends "laundry/base_laundry.html" %}
+{% block page_title %}Pricing{% endblock %}
+
+{% block content %}
+
+<div class="mb-4">
+  <h1 class="page-heading">Pricing</h1>
+  <p class="page-subtitle mb-0">{{ profile.business_name }} — Per-item laundry rate</p>
+</div>
+
+{% set msgs = get_messages(request) %}
+{% if msgs %}
+{% for msg in msgs %}
+<div class="alert alert-portal {% if 'error' in msg.tags %}alert-danger{% else %}alert-success{% endif %} mb-3">
+  {{ msg }}
+</div>
+{% endfor %}
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-12 col-md-6">
+
+    {# Current price ── #}
+    <div class="card-section mb-3">
+      <div class="card-section-title">Current Rate</div>
+      <div style="display:flex;align-items:baseline;gap:6px;">
+        <span style="font-size:2.5rem;font-weight:700;color:var(--accent);">₹{{ profile.price_per_item }}</span>
+        <span style="font-size:14px;color:#888;">per item</span>
+      </div>
+      <div style="margin-top:8px;font-size:12px;color:#888;">
+        This rate is shown to hospitals when they browse laundry partners.
+        Any change applies to <strong>new orders only</strong> — existing orders keep their rate at order creation.
+      </div>
+    </div>
+
+    {# Update form ── #}
+    <div class="card-section">
+      <div class="card-section-title">Update Rate</div>
+      <form method="post">
+        {{ csrf_input }}
+        <div class="mb-3">
+          <label class="form-label-sm" for="id_price_per_item">New Price per Item (₹)</label>
+          <div class="input-group" style="max-width:220px;">
+            <span class="input-group-text" style="background:#f8fafc;border-color:#d8e6f5;font-size:14px;color:#888;">₹</span>
+            <input type="number" class="form-control" id="id_price_per_item" name="price_per_item"
+                   value="{{ form.price_per_item.value() or profile.price_per_item }}"
+                   step="0.50" min="0"
+                   style="border-color:#d8e6f5;font-size:14px;"
+                   required>
+          </div>
+          {% if form.price_per_item.errors %}
+          <div style="font-size:12px;color:var(--accent);margin-top:4px;">
+            {% for e in form.price_per_item.errors %}{{ e }}{% endfor %}
+          </div>
+          {% endif %}
+        </div>
+        <div style="font-size:12px;color:#888;margin-bottom:1rem;padding:10px 12px;background:#fff7e6;border-radius:6px;border:.5px solid #fed7a0;">
+          <strong>Note:</strong> Changing the price does not retroactively affect placed orders. New orders created after this change will use the updated rate.
+        </div>
+        <button type="submit" class="btn btn-accent">Update Price</button>
+      </form>
+    </div>
+
+  </div>
+
+  <div class="col-12 col-md-6">
+    <div class="card-section">
+      <div class="card-section-title">How Pricing Works</div>
+      <div style="font-size:13px;color:#555;line-height:1.8;">
+        <div class="d-flex gap-3 mb-3">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--accent-light);color:var(--accent);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">1</div>
+          <div>Hospitals see your rate (₹ per item) when selecting a laundry partner.</div>
+        </div>
+        <div class="d-flex gap-3 mb-3">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--accent-light);color:var(--accent);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">2</div>
+          <div>At order completion, the invoice is calculated as: <strong>rate × item count</strong>.</div>
+        </div>
+        <div class="d-flex gap-3">
+          <div style="width:32px;height:32px;border-radius:50%;background:var(--accent-light);color:var(--accent);font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">3</div>
+          <div>Rate changes apply from the next order forward — in-progress orders are unaffected.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

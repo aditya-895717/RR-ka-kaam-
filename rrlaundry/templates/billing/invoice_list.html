@@ -1,0 +1,113 @@
+{% extends "hospital/base_hospital.html" %}
+{% block page_title %}Invoices{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="page-heading">Invoices</h1>
+    <p class="page-subtitle mb-0">{{ page_obj.paginator.count }} invoice{{ 's' if page_obj.paginator.count != 1 else '' }}</p>
+  </div>
+</div>
+
+{# ── Filter bar ── #}
+<form method="get" class="card-section mb-4">
+  <div class="row g-3 align-items-end">
+    <div class="col-12 col-sm-6 col-md-3">
+      <label class="form-label-sm">Status</label>
+      <select class="form-select" name="status" style="border-radius:6px;font-size:12px;border-color:#d8e6f5;">
+        <option value="">All Statuses</option>
+        <option value="PENDING" {% if status_filter == 'PENDING' %}selected{% endif %}>Pending</option>
+        <option value="PAID"    {% if status_filter == 'PAID'    %}selected{% endif %}>Paid</option>
+        <option value="OVERDUE" {% if status_filter == 'OVERDUE' %}selected{% endif %}>Overdue</option>
+      </select>
+    </div>
+    <div class="col-12 col-md-2 d-flex gap-2">
+      <button type="submit" class="btn btn-accent flex-fill" style="font-size:12px;padding:8px;">Filter</button>
+      <a href="{{ url('billing_invoice_list') }}" class="btn btn-outline-secondary" style="font-size:12px;border-radius:6px;padding:8px 12px;">Reset</a>
+    </div>
+  </div>
+</form>
+
+{# ── Invoices table ── #}
+<div class="card-section p-0">
+  {% if page_obj.object_list %}
+  <div class="table-responsive">
+    <table class="table table-portal mb-0">
+      <thead>
+        <tr>
+          <th style="padding-left:1.5rem;">Invoice #</th>
+          <th>Order</th>
+          <th>Laundry Partner</th>
+          <th>Items</th>
+          <th>Amount</th>
+          <th>Due Date</th>
+          <th>Status</th>
+          <th style="width:60px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inv in page_obj.object_list %}
+        <tr>
+          <td style="padding-left:1.5rem;">
+            <code style="font-size:12px;color:#003580;font-weight:600;">{{ inv.invoice_number }}</code>
+          </td>
+          <td style="color:#888;font-size:12px;"><code>#{{ inv.order.short_id }}</code></td>
+          <td style="color:#444;">{{ inv.laundry_partner.business_name if inv.laundry_partner else '—' }}</td>
+          <td style="color:#444;">{{ inv.total_items }}</td>
+          <td style="font-weight:600;color:#003580;">₹{{ inv.total_amount }}</td>
+          <td style="font-size:12px;{% if inv.is_overdue() %}color:#c00;font-weight:600;{% else %}color:#888;{% endif %}">
+            {{ inv.due_date.strftime('%d %b %Y') }}
+          </td>
+          <td>
+            {% if inv.status == 'PAID' %}
+              <span class="status-badge sb-delivered">Paid</span>
+            {% elif inv.is_overdue() %}
+              <span class="status-badge sb-flagged">Overdue</span>
+            {% else %}
+              <span class="status-badge sb-laundry">Pending</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{{ url('billing_invoice_detail', invoice_id=inv.invoice_id) }}"
+               style="font-size:12px;color:var(--accent);text-decoration:none;font-weight:600;">View</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div style="padding:3rem;text-align:center;color:#888;font-size:14px;">
+    No invoices found.
+  </div>
+  {% endif %}
+</div>
+
+{# ── Pagination ── #}
+{% if page_obj.paginator.num_pages > 1 %}
+<div class="d-flex align-items-center justify-content-between mt-3 flex-wrap gap-2" style="font-size:12px;color:#888;">
+  <div>Showing {{ page_obj.start_index() }}–{{ page_obj.end_index() }} of {{ page_obj.paginator.count }}</div>
+  <nav>
+    <ul class="pagination mb-0" style="--bs-pagination-font-size:.75rem;--bs-pagination-padding-x:.6rem;--bs-pagination-padding-y:.3rem;">
+      {% if page_obj.has_previous() %}
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number() }}&{{ query_string }}">‹ Prev</a></li>
+      {% endif %}
+      {% for num in page_obj.paginator.page_range %}
+        {% if num == page_obj.number %}
+        <li class="page-item active"><span class="page-link" style="background:var(--accent);border-color:var(--accent);">{{ num }}</span></li>
+        {% elif num == 1 or num == page_obj.paginator.num_pages or (num >= page_obj.number - 2 and num <= page_obj.number + 2) %}
+        <li class="page-item"><a class="page-link" href="?page={{ num }}&{{ query_string }}">{{ num }}</a></li>
+        {% elif num == page_obj.number - 3 or num == page_obj.number + 3 %}
+        <li class="page-item disabled"><span class="page-link">…</span></li>
+        {% endif %}
+      {% endfor %}
+      {% if page_obj.has_next() %}
+      <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number() }}&{{ query_string }}">Next ›</a></li>
+      {% endif %}
+    </ul>
+  </nav>
+</div>
+{% endif %}
+
+{% endblock %}

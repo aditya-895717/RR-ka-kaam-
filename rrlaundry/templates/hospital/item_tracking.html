@@ -1,0 +1,207 @@
+{% extends "hospital/base_hospital.html" %}
+{% block page_title %}Item Tracking{% endblock %}
+
+{% block extra_css %}{{ super() }}
+<style>
+  .timeline { position: relative; padding-left: 2rem; }
+  .timeline::before {
+    content: ''; position: absolute; left: 10px; top: 8px;
+    bottom: 8px; width: 2px; background: #e8eef5;
+  }
+  .tl-step { position: relative; margin-bottom: 1.5rem; }
+  .tl-dot {
+    position: absolute; left: -2rem; top: 4px;
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid #d8e6f5; background: #fff;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .tl-dot.done    { background: var(--accent); border-color: var(--accent); }
+  .tl-dot.current { background: #fff; border-color: var(--accent); }
+  .tl-dot.pending { background: #f8fafc; border-color: #d8e6f5; }
+  .tl-dot.done svg    { stroke: #fff; }
+  .tl-dot.current svg { stroke: var(--accent); }
+  .tl-dot.pending svg { stroke: #ccc; }
+  .tl-label { font-size: 13px; font-weight: 600; color: #1e3a6e; margin-bottom: 2px; }
+  .tl-label.done    { color: #1e3a6e; }
+  .tl-label.pending { color: #aaa; font-weight: 400; }
+  .tl-meta  { font-size: 11px; color: #888; }
+  .scan-point { display: inline-block; font-size: 10px; font-weight: 700; letter-spacing: .5px;
+                background: var(--accent-light); color: var(--accent); border-radius: 4px; padding: 1px 7px; margin-left: 6px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="mb-4">
+  <h1 class="page-heading">Item Tracking</h1>
+  <p class="page-subtitle mb-0">Look up any RFID tag to see its current position</p>
+</div>
+
+{# ── Search form ── #}
+<div class="card-section mb-4" style="max-width:560px;">
+  <form method="get" class="d-flex gap-2" id="trackForm">
+    <input type="text" class="form-control tag-input" name="tag"
+           value="{{ tag_query or '' }}"
+           placeholder="RFID Tag Number (e.g. RFID-0001)"
+           style="border-radius:6px;font-size:13px;border-color:#d8e6f5;font-family:monospace;text-transform:uppercase;"
+           id="tagInput"
+           autocomplete="off">
+    <button type="submit" class="btn btn-accent" style="white-space:nowrap;min-width:80px;">Search</button>
+    {% if tag_query %}
+    <a href="{{ url('hospital_item_tracking') }}" class="btn btn-outline-secondary" style="border-radius:6px;font-size:13px;">Clear</a>
+    {% endif %}
+  </form>
+</div>
+
+{# ── Results ── #}
+{% if tag_query %}
+
+  {% if not item %}
+  <div class="alert alert-warning alert-portal" style="max-width:560px;">
+    No item found with tag <strong>{{ tag_query }}</strong>.
+  </div>
+
+  {% else %}
+  <div class="row g-3">
+
+    {# ── Item summary ── #}
+    <div class="col-12 col-md-5">
+      <div class="card-section">
+        <div class="card-section-title">Item Details</div>
+        <div style="font-size:13px;line-height:2;color:#444;">
+          <div>
+            <span style="color:#888;font-size:11px;">TAG</span><br>
+            <code style="font-size:13px;color:#003580;font-weight:700;">{{ item.tag_number }}</code>
+          </div>
+          <div class="mt-2">
+            <span style="color:#888;font-size:11px;">TYPE</span><br>
+            <strong>{{ item.get_item_type_display() }}</strong>
+          </div>
+          <div class="mt-2">
+            <span style="color:#888;font-size:11px;">STATUS</span><br>
+            {% set hl = item.hospital_status_label() %}
+            {% if hl == 'With Hospital' %}<span class="status-badge sb-created">{{ hl }}</span>
+            {% elif hl == 'Pickup Scanned' %}<span class="status-badge sb-pickup">{{ hl }}</span>
+            {% elif hl == 'At Laundry Plant' %}<span class="status-badge sb-laundry">{{ hl }}</span>
+            {% elif hl == 'Out for Delivery' %}<span class="status-badge sb-dispatch">{{ hl }}</span>
+            {% elif hl == 'Delivered' %}<span class="status-badge sb-delivered">{{ hl }}</span>
+            {% elif hl == 'Completed' %}<span class="status-badge sb-completed">{{ hl }}</span>
+            {% else %}<span class="status-badge sb-flagged">{{ hl }}</span>
+            {% endif %}
+          </div>
+          {% if item.order %}
+          <div class="mt-2">
+            <span style="color:#888;font-size:11px;">ORDER</span><br>
+            <a href="{{ url('hospital_order_detail', order_id=item.order.order_id) }}"
+               style="color:var(--accent);text-decoration:none;font-weight:600;">
+              #{{ item.order.short_id }}
+            </a>
+          </div>
+          {% endif %}
+          {% if item.last_scanned_at %}
+          <div class="mt-2">
+            <span style="color:#888;font-size:11px;">LAST SCAN</span><br>
+            <strong>{{ item.last_scanned_at.strftime('%d %b %Y, %H:%M') }}</strong>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# ── Scan timeline ── #}
+    <div class="col-12 col-md-7">
+      <div class="card-section">
+        <div class="card-section-title">Scan Progress</div>
+        {% set prog = item.scan_progress() %}
+
+        <div class="timeline">
+
+          {# S1 — Hospital pickup #}
+          {% set s1_done = prog >= 1 %}
+          <div class="tl-step">
+            <div class="tl-dot {{ 'done' if s1_done else 'pending' }}">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                {% if s1_done %}<polyline points="20 6 9 17 4 12"/>{% else %}<circle cx="12" cy="12" r="5" fill="currentColor"/>{% endif %}
+              </svg>
+            </div>
+            <div class="tl-label {{ 'done' if s1_done else 'pending' }}">
+              Pickup Scanned
+              <span class="scan-point">S1</span>
+            </div>
+            <div class="tl-meta">Collected from {{ profile.hospital_name if profile else 'Hospital' }}</div>
+          </div>
+
+          {# S2 — Arrived at laundry #}
+          {% set s2_done = prog >= 2 %}
+          <div class="tl-step">
+            <div class="tl-dot {{ 'done' if s2_done else ('current' if s1_done else 'pending') }}">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                {% if s2_done %}<polyline points="20 6 9 17 4 12"/>{% else %}<circle cx="12" cy="12" r="5" fill="currentColor"/>{% endif %}
+              </svg>
+            </div>
+            <div class="tl-label {{ 'done' if s2_done else ('tl-label' if s1_done else 'pending') }}">
+              Arrived at Laundry
+              <span class="scan-point" style="{% if not s2_done and not s1_done %}color:#bbb;background:#f0f0f0;{% endif %}">S2</span>
+            </div>
+            <div class="tl-meta">Received at laundry plant for washing</div>
+          </div>
+
+          {# S3 — Dispatched from laundry #}
+          {% set s3_done = prog >= 3 %}
+          <div class="tl-step">
+            <div class="tl-dot {{ 'done' if s3_done else ('current' if s2_done else 'pending') }}">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                {% if s3_done %}<polyline points="20 6 9 17 4 12"/>{% else %}<circle cx="12" cy="12" r="5" fill="currentColor"/>{% endif %}
+              </svg>
+            </div>
+            <div class="tl-label {{ 'done' if s3_done else ('tl-label' if s2_done else 'pending') }}">
+              Dispatched for Delivery
+              <span class="scan-point" style="{% if not s3_done and not s2_done %}color:#bbb;background:#f0f0f0;{% endif %}">S3</span>
+            </div>
+            <div class="tl-meta">Cleaned, packed and out for delivery</div>
+          </div>
+
+          {# S4 — Delivered to hospital #}
+          {% set s4_done = prog >= 4 %}
+          <div class="tl-step" style="margin-bottom:0;">
+            <div class="tl-dot {{ 'done' if s4_done else ('current' if s3_done else 'pending') }}">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                {% if s4_done %}<polyline points="20 6 9 17 4 12"/>{% else %}<circle cx="12" cy="12" r="5" fill="currentColor"/>{% endif %}
+              </svg>
+            </div>
+            <div class="tl-label {{ 'done' if s4_done else ('tl-label' if s3_done else 'pending') }}">
+              Delivered to Hospital
+              <span class="scan-point" style="{% if not s4_done and not s3_done %}color:#bbb;background:#f0f0f0;{% endif %}">S4</span>
+            </div>
+            <div class="tl-meta">Returned to {{ profile.hospital_name if profile else 'Hospital' }}</div>
+          </div>
+
+        </div>
+
+        {# Progress bar #}
+        <div class="mt-4">
+          <div class="d-flex justify-content-between mb-1" style="font-size:11px;color:#888;">
+            <span>Progress</span><span>{{ prog }}/4 checkpoints</span>
+          </div>
+          <div style="background:#f0f0f0;border-radius:4px;height:6px;overflow:hidden;">
+            <div style="width:{{ (prog / 4 * 100)|int }}%;background:var(--accent);height:100%;border-radius:4px;transition:width .4s;"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+  {% endif %}
+
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}{{ super() }}
+<script>
+document.getElementById('tagInput').addEventListener('input', function() {
+  this.value = this.value.toUpperCase();
+});
+</script>
+{% endblock %}

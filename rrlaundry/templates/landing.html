@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RR Laundry — RFID-Powered Hospital Laundry Management</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+  <style>
+    :root {
+      --navy:    #003580;
+      --sky:     #0071CE;
+      --mid:     #185FA5;
+      --light:   #E6F1FB;
+      --btext:   #0C447C;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', system-ui, sans-serif; margin: 0; padding: 0; color: #1a1a1a; }
+
+    /* ── Navbar ────────────────────────────────────── */
+    .site-nav {
+      background: #fff;
+      border-bottom: 1px solid #e8edf4;
+      padding: 0;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      transition: box-shadow .25s;
+    }
+    .site-nav.scrolled { box-shadow: 0 2px 16px rgba(0,53,128,.1); border-bottom-color: transparent; }
+    .site-nav .container { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+    .nav-brand { text-decoration: none; line-height: 1.2; }
+    .nav-brand-name { font-size: 19px; font-weight: 700; color: var(--navy); display: block; }
+    .nav-brand-sub  { font-size: 10px; color: #999; font-weight: 400; display: block; }
+    .nav-links { display: flex; align-items: center; gap: 2rem; }
+    .nav-links a { font-size: 14px; font-weight: 500; color: #444; text-decoration: none; transition: color .15s; }
+    .nav-links a:hover { color: var(--navy); }
+    .nav-cta {
+      background: var(--navy); color: #fff !important;
+      border-radius: 6px; padding: 9px 22px;
+      font-size: 14px; font-weight: 600; text-decoration: none;
+      transition: background .15s;
+    }
+    .nav-cta:hover { background: var(--mid); }
+    .nav-toggle {
+      display: none; background: none; border: none; cursor: pointer;
+      padding: 6px; border-radius: 5px; color: var(--navy);
+    }
+    @media (max-width: 767px) {
+      .nav-links { display: none; position: absolute; top: 64px; left: 0; right: 0;
+        background: #fff; flex-direction: column; padding: 1rem 1.5rem 1.5rem;
+        border-bottom: 1px solid #e8edf4; gap: 1rem; z-index: 999; }
+      .nav-links.open { display: flex; }
+      .nav-toggle { display: block; }
+    }
+
+    /* ── Hero ──────────────────────────────────────── */
+    .hero {
+      background: #0a0a0a;
+      min-height: calc(100vh - 64px);
+      display: flex; align-items: center;
+      position: relative; overflow: hidden;
+    }
+    .hero-blob {
+      position: absolute; border-radius: 50%;
+      background: var(--sky); pointer-events: none;
+      filter: blur(90px);
+    }
+    .blob-1 { width: 520px; height: 520px; top: -120px; right: -80px; opacity: .06; }
+    .blob-2 { width: 280px; height: 280px; bottom: -60px; left: -40px; opacity: .05; }
+    .hero-accent {
+      position: absolute; bottom: 0; left: 0; right: 0; height: 1.5px;
+      background: linear-gradient(90deg, transparent 0%, var(--sky) 35%, var(--navy) 65%, transparent 100%);
+      opacity: .45;
+    }
+    .hero-content { position: relative; z-index: 1; padding: 5rem 0; }
+    .hero-eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-size: 11px; font-weight: 600; letter-spacing: .9px;
+      text-transform: uppercase; color: var(--sky);
+      border: 1px solid rgba(0,113,206,.35);
+      border-radius: 20px; padding: 5px 14px; margin-bottom: 1.5rem;
+    }
+    .hero-eyebrow span { width: 6px; height: 6px; border-radius: 50%; background: var(--sky); flex-shrink: 0; }
+    .hero h1 {
+      color: #fff; font-weight: 700; line-height: 1.18;
+      font-size: clamp(2rem, 5vw, 3.25rem);
+      margin-bottom: 1.25rem;
+    }
+    .hero h1 .accent { color: var(--sky); }
+    .hero-sub { color: #8a9caf; font-size: clamp(14px, 2vw, 17px); max-width: 520px; line-height: 1.7; margin-bottom: 2.5rem; }
+    .btn-primary-nav {
+      background: var(--navy); color: #fff; border: none;
+      border-radius: 6px; padding: 13px 30px;
+      font-weight: 600; font-size: 15px; text-decoration: none;
+      transition: background .2s; display: inline-block;
+    }
+    .btn-primary-nav:hover { background: var(--mid); color: #fff; }
+    .btn-outline-nav {
+      background: transparent; color: rgba(255,255,255,.8);
+      border: 1.5px solid rgba(255,255,255,.25);
+      border-radius: 6px; padding: 13px 30px;
+      font-weight: 600; font-size: 15px; text-decoration: none;
+      transition: border-color .2s, color .2s; display: inline-block;
+    }
+    .btn-outline-nav:hover { border-color: var(--sky); color: var(--sky); }
+    .hero-rfid-art { opacity: .18; }
+
+    /* ── Stats ─────────────────────────────────────── */
+    .stats-section { background: var(--light); padding: 4rem 0; }
+    .stat-card {
+      background: #fff; border: .5px solid #c8ddf0;
+      border-radius: 8px; padding: 2rem 1.5rem; text-align: center;
+    }
+    .stat-card .num { font-size: 2.25rem; font-weight: 700; color: var(--navy); line-height: 1; }
+    .stat-card .lbl { font-size: 13px; color: #6b7280; margin-top: 7px; }
+
+    /* ── Section header ─────────────────────────────── */
+    .sec-label { font-size: 11px; font-weight: 600; letter-spacing: .8px; text-transform: uppercase; color: var(--sky); margin-bottom: 8px; }
+    .sec-title { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 700; color: var(--navy); margin-bottom: .75rem; }
+    .sec-sub   { font-size: 14px; color: #6b7280; max-width: 480px; margin: 0 auto; line-height: 1.7; }
+
+    /* ── How it works ───────────────────────────────── */
+    .hiw-section { background: #fff; padding: 5rem 0; }
+    .step-card {
+      background: #fff; border: .5px solid #e0ebf7;
+      border-radius: 8px; padding: 1.75rem 1.5rem; height: 100%;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .step-card:hover { border-color: var(--sky); box-shadow: 0 4px 20px rgba(0,53,128,.07); }
+    .step-badge {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--navy); color: #fff;
+      font-size: 14px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .step-title { font-weight: 600; color: var(--navy); font-size: 15px; }
+    .step-desc  { font-size: 13px; color: #6b7280; line-height: 1.65; margin: 0; }
+
+    /* ── Portals ────────────────────────────────────── */
+    .portals-section { background: var(--light); padding: 5rem 0; }
+    .portal-card {
+      background: #fff; border: .5px solid #c8ddf0;
+      border-radius: 8px; padding: 2.25rem 1.75rem; text-align: center;
+      height: 100%;
+      transition: border-color .2s, box-shadow .2s, transform .15s;
+    }
+    .portal-card:hover {
+      border-color: var(--navy);
+      box-shadow: 0 8px 28px rgba(0,53,128,.1);
+      transform: translateY(-4px);
+    }
+    .portal-icon-wrap {
+      width: 64px; height: 64px; border-radius: 14px;
+      background: var(--light); margin: 0 auto 1.25rem;
+      display: flex; align-items: center; justify-content: center;
+      transition: background .2s;
+    }
+    .portal-card:hover .portal-icon-wrap { background: var(--navy); }
+    .portal-icon-wrap svg { stroke: var(--navy); transition: stroke .2s; }
+    .portal-card:hover .portal-icon-wrap svg { stroke: #fff; }
+    .portal-name { font-size: 17px; font-weight: 700; color: var(--navy); margin-bottom: 8px; }
+    .portal-desc { font-size: 13px; color: #6b7280; line-height: 1.65; margin-bottom: 1.5rem; }
+    .btn-portal {
+      display: block; width: 100%;
+      border: 1.5px solid var(--navy); color: var(--navy);
+      background: transparent; border-radius: 6px;
+      padding: 9px 0; font-size: 13px; font-weight: 600;
+      text-decoration: none; transition: background .15s, color .15s;
+    }
+    .btn-portal:hover { background: var(--navy); color: #fff; }
+
+    /* ── Footer ─────────────────────────────────────── */
+    .site-footer { background: var(--navy); color: rgba(255,255,255,.55); padding: 2.5rem 0 2rem; }
+    .site-footer .brand { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+    .site-footer .tagline { font-size: 12px; }
+    .site-footer a { color: var(--sky); text-decoration: none; font-size: 13px; }
+    .site-footer a:hover { text-decoration: underline; }
+    .footer-divider { border-color: rgba(255,255,255,.1); margin: 1.25rem 0 1rem; }
+    .footer-copy { font-size: 12px; text-align: center; }
+
+    /* ── Modal ───────────────────────────────────────── */
+    .portal-modal .modal-content {
+      border: none; border-radius: 12px;
+      box-shadow: 0 24px 64px rgba(0,53,128,.18);
+    }
+    .modal-portal-btn {
+      display: flex; align-items: center; gap: 14px;
+      border: 1px solid #dce8f4; border-radius: 8px;
+      padding: 14px 16px; text-decoration: none; color: inherit;
+      transition: border-color .15s, background .15s;
+    }
+    .modal-portal-btn:hover { border-color: var(--navy); background: var(--light); color: inherit; }
+    .modal-portal-icon {
+      width: 38px; height: 38px; border-radius: 8px;
+      background: var(--light);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .modal-portal-title { font-size: 14px; font-weight: 600; color: var(--navy); }
+    .modal-portal-sub   { font-size: 12px; color: #888; }
+  </style>
+</head>
+<body>
+
+{# ══════════════════════════════════════════════
+   NAVBAR
+══════════════════════════════════════════════ #}
+<nav class="site-nav" id="siteNav">
+  <div class="container">
+    <a class="nav-brand" href="#">
+      <span class="nav-brand-name">RR Laundry</span>
+      <span class="nav-brand-sub">by Dubey IT Solutions</span>
+    </a>
+    <button class="nav-toggle" id="navToggle" aria-label="Menu">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+      </svg>
+    </button>
+    <div class="nav-links" id="navLinks">
+      <a href="#features">Features</a>
+      <a href="#how-it-works">How It Works</a>
+      <a href="#contact">Contact</a>
+      {% if request.user.is_authenticated %}
+      <a href="{{ url('account_redirect') }}" class="nav-cta">Go to Dashboard</a>
+      {% else %}
+      <a href="#" class="nav-cta" data-bs-toggle="modal" data-bs-target="#loginModal">Login</a>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+{# ══════════════════════════════════════════════
+   HERO
+══════════════════════════════════════════════ #}
+<section class="hero">
+  <div class="hero-blob blob-1"></div>
+  <div class="hero-blob blob-2"></div>
+  <div class="hero-accent"></div>
+  <div class="container">
+    <div class="row align-items-center">
+      <div class="col-lg-7 hero-content">
+        <div class="hero-eyebrow"><span></span>RFID-Powered Platform</div>
+        <h1>RFID-Powered Laundry<br>Management for <span class="accent">Hospitals</span></h1>
+        <p class="hero-sub">
+          Track every linen item from pickup to delivery.<br>
+          Zero loss. Full accountability.
+        </p>
+        <div class="d-flex flex-wrap gap-3">
+          {% if request.user.is_authenticated %}
+          <a href="{{ url('account_redirect') }}" class="btn-primary-nav">Go to Dashboard</a>
+          {% else %}
+          <a href="#" class="btn-primary-nav" data-bs-toggle="modal" data-bs-target="#loginModal">Get Started</a>
+          <a href="#how-it-works" class="btn-outline-nav">Learn More</a>
+          {% endif %}
+        </div>
+      </div>
+      <div class="col-lg-5 d-none d-lg-flex justify-content-center">
+        <svg class="hero-rfid-art" width="340" height="280" viewBox="0 0 340 280" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="110" y="60" width="120" height="160" rx="14" stroke="#0071CE" stroke-width="1.5"/>
+          <rect x="130" y="80" width="80" height="120" rx="8" stroke="#0071CE" stroke-width="1.2"/>
+          <line x1="142" y1="102" x2="198" y2="102" stroke="#0071CE" stroke-width="1"/>
+          <line x1="142" y1="118" x2="198" y2="118" stroke="#0071CE" stroke-width="1"/>
+          <line x1="142" y1="134" x2="185" y2="134" stroke="#0071CE" stroke-width="1"/>
+          <line x1="142" y1="150" x2="192" y2="150" stroke="#0071CE" stroke-width="1"/>
+          <line x1="142" y1="166" x2="178" y2="166" stroke="#0071CE" stroke-width="1"/>
+          <path d="M93 120 Q76 140 93 160" stroke="#0071CE" stroke-width="1.5" fill="none"/>
+          <path d="M76 105 Q48 140 76 175" stroke="#0071CE" stroke-width="1.5" fill="none"/>
+          <path d="M59 90 Q22 140 59 190" stroke="#0071CE" stroke-width="1.5" fill="none"/>
+          <path d="M247 120 Q264 140 247 160" stroke="#0071CE" stroke-width="1.5" fill="none"/>
+          <path d="M264 105 Q292 140 264 175" stroke="#0071CE" stroke-width="1.5" fill="none"/>
+          <path d="M281 90 Q318 140 281 190" stroke="#0071CE" stroke-width="1.5" fill="none"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ══════════════════════════════════════════════
+   STATS
+══════════════════════════════════════════════ #}
+<section class="stats-section" id="features">
+  <div class="container">
+    <div class="row g-4 justify-content-center">
+      <div class="col-12 col-sm-4">
+        <div class="stat-card">
+          <div class="num">4</div>
+          <div class="lbl">RFID Scan Points</div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-4">
+        <div class="stat-card">
+          <div class="num">3</div>
+          <div class="lbl">Role-Based Portals</div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-4">
+        <div class="stat-card">
+          <div class="num">1hr</div>
+          <div class="lbl">Missing Item Alert</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+{# ══════════════════════════════════════════════
+   HOW IT WORKS
+══════════════════════════════════════════════ #}
+<section class="hiw-section" id="how-it-works">
+  <div class="container">
+    <div class="text-center mb-5">
+      <p class="sec-label">Process</p>
+      <h2 class="sec-title">How It Works</h2>
+      <p class="sec-sub">Every linen item is RFID-tagged and tracked across four scan points — from hospital to laundry and back.</p>
+    </div>
+    <div class="row g-4">
+
+      <div class="col-12 col-sm-6 col-lg-3">
+        <div class="step-card">
+          <div class="d-flex align-items-start gap-3 mb-3">
+            <div class="step-badge">1</div>
+            <div class="step-title">Hospital raises order</div>
+          </div>
+          <p class="step-desc">Hospital staff logs a laundry pickup request with item count and department details.</p>
+        </div>
+      </div>
+
+      <div class="col-12 col-sm-6 col-lg-3">
+        <div class="step-card">
+          <div class="d-flex align-items-start gap-3 mb-3">
+            <div class="step-badge">2</div>
+            <div class="step-title">Delivery picks up</div>
+          </div>
+          <p class="step-desc">Delivery partner scans each RFID-tagged item at the hospital gate (Scan Point S1).</p>
+        </div>
+      </div>
+
+      <div class="col-12 col-sm-6 col-lg-3">
+        <div class="step-card">
+          <div class="d-flex align-items-start gap-3 mb-3">
+            <div class="step-badge">3</div>
+            <div class="step-title">Laundry processes</div>
+          </div>
+          <p class="step-desc">Laundry workers scan items in (S2) and out (S3), updating status in real time.</p>
+        </div>
+      </div>
+
+      <div class="col-12 col-sm-6 col-lg-3">
+        <div class="step-card">
+          <div class="d-flex align-items-start gap-3 mb-3">
+            <div class="step-badge">4</div>
+            <div class="step-title">Delivery back to hospital</div>
+          </div>
+          <p class="step-desc">Items scanned at hospital on return (Scan Point S4). Order marked complete, invoice generated.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+{# ══════════════════════════════════════════════
+   PORTALS
+══════════════════════════════════════════════ #}
+<section class="portals-section" id="portals">
+  <div class="container">
+    <div class="text-center mb-5">
+      <p class="sec-label">Access</p>
+      <h2 class="sec-title">Three Role-Based Portals</h2>
+      <p class="sec-sub">Each role gets a tailored dashboard with exactly the tools they need.</p>
+    </div>
+    <div class="row g-4 justify-content-center">
+
+      <div class="col-12 col-sm-10 col-md-6 col-lg-4">
+        <div class="portal-card">
+          <div class="portal-icon-wrap">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
+              <line x1="12" y1="5" x2="12" y2="8"/><line x1="10.5" y1="6.5" x2="13.5" y2="6.5"/>
+            </svg>
+          </div>
+          <div class="portal-name">Hospital Portal</div>
+          <div class="portal-desc">Order management, item tracking, department batches, and invoices.</div>
+          <a href="{{ url('account_login') }}" class="btn-portal">Hospital Login</a>
+        </div>
+      </div>
+
+      <div class="col-12 col-sm-10 col-md-6 col-lg-4">
+        <div class="portal-card">
+          <div class="portal-icon-wrap">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="23 4 23 10 17 10"/>
+              <polyline points="1 20 1 14 7 14"/>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+            </svg>
+          </div>
+          <div class="portal-name">Laundry Portal</div>
+          <div class="portal-desc">Receive orders, process items, manage pricing and dispatch scheduling.</div>
+          <a href="{{ url('account_login') }}" class="btn-portal">Laundry Login</a>
+        </div>
+      </div>
+
+      <div class="col-12 col-sm-10 col-md-6 col-lg-4">
+        <div class="portal-card">
+          <div class="portal-icon-wrap">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="1" y="3" width="15" height="13" rx="1"/>
+              <path d="M16 8h4l3 3v5h-7V8z"/>
+              <circle cx="5.5" cy="18.5" r="2.5"/>
+              <circle cx="18.5" cy="18.5" r="2.5"/>
+            </svg>
+          </div>
+          <div class="portal-name">Delivery Portal</div>
+          <div class="portal-desc">Pickup and delivery jobs with RFID scanning at each checkpoint.</div>
+          <a href="{{ url('account_login') }}" class="btn-portal">Delivery Login</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+{# ══════════════════════════════════════════════
+   FOOTER
+══════════════════════════════════════════════ #}
+<footer class="site-footer" id="contact">
+  <div class="container">
+    <div class="row align-items-center">
+      <div class="col-md-6 mb-3 mb-md-0">
+        <div class="brand">RR Laundry</div>
+        <div class="tagline">by Dubey IT Solutions &mdash; Built for Indian Hospitals</div>
+      </div>
+      <div class="col-md-6 text-md-end">
+        <a href="#" class="me-3">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+      </div>
+    </div>
+    <hr class="footer-divider">
+    <p class="footer-copy">&copy; 2025 RR Laundry. All rights reserved.</p>
+  </div>
+</footer>
+
+{# ══════════════════════════════════════════════
+   LOGIN MODAL
+══════════════════════════════════════════════ #}
+<div class="modal fade portal-modal" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+    <div class="modal-content">
+      <div class="modal-header border-0 px-4 pt-4 pb-0">
+        <div>
+          <h5 class="modal-title fw-bold mb-1" id="loginModalLabel" style="color: var(--navy); font-size: 18px;">Select your portal</h5>
+          <p class="text-muted mb-0" style="font-size: 13px;">Log in to the portal that matches your role.</p>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-4">
+        <div class="d-flex flex-column gap-3">
+
+          <a href="{{ url('account_login') }}" class="modal-portal-btn">
+            <div class="modal-portal-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#003580" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+                <line x1="12" y1="5" x2="12" y2="8"/><line x1="10.5" y1="6.5" x2="13.5" y2="6.5"/>
+              </svg>
+            </div>
+            <div>
+              <div class="modal-portal-title">Hospital Portal</div>
+              <div class="modal-portal-sub">Staff, Head &amp; Department management</div>
+            </div>
+          </a>
+
+          <a href="{{ url('account_login') }}" class="modal-portal-btn">
+            <div class="modal-portal-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#003580" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="23 4 23 10 17 10"/>
+                <polyline points="1 20 1 14 7 14"/>
+                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+              </svg>
+            </div>
+            <div>
+              <div class="modal-portal-title">Laundry Portal</div>
+              <div class="modal-portal-sub">Admin, Workers &amp; Processing floor</div>
+            </div>
+          </a>
+
+          <a href="{{ url('account_login') }}" class="modal-portal-btn">
+            <div class="modal-portal-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#003580" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="1" y="3" width="15" height="13" rx="1"/>
+                <path d="M16 8h4l3 3v5h-7V8z"/>
+                <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+              </svg>
+            </div>
+            <div>
+              <div class="modal-portal-title">Delivery Portal</div>
+              <div class="modal-portal-sub">Pickup, Delivery &amp; RFID Scanning</div>
+            </div>
+          </a>
+
+        </div>
+        <div class="text-center mt-4" style="font-size: 13px; color: #888;">
+          New here? <a href="{{ url('account_signup') }}" style="color: var(--sky); font-weight: 600;">Create an account</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+<script>
+(function () {
+  'use strict';
+  // Navbar shadow on scroll
+  var nav = document.getElementById('siteNav');
+  if (nav) {
+    window.addEventListener('scroll', function () {
+      nav.classList.toggle('scrolled', window.scrollY > 10);
+    });
+  }
+  // Mobile nav toggle
+  var toggle = document.getElementById('navToggle');
+  var links  = document.getElementById('navLinks');
+  if (toggle && links) {
+    toggle.addEventListener('click', function () { links.classList.toggle('open'); });
+  }
+})();
+</script>
+</body>
+</html>

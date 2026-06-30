@@ -1,0 +1,178 @@
+{% extends "laundry/base_laundry.html" %}
+{% block page_title %}Processing Floor{% endblock %}
+
+{% block extra_css %}{{ super() }}
+<style>
+  .stage-section { margin-bottom: 1.75rem; }
+  .stage-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px; border-radius: 8px 8px 0 0;
+    border: .5px solid #e5eaf2;
+    background: #f8fafc;
+  }
+  .stage-header .count-pill {
+    margin-left: auto; background: #e0eaf4; color: #003580;
+    font-size: 11px; font-weight: 700; border-radius: 20px; padding: 2px 10px;
+  }
+  .stage-body {
+    border: .5px solid #e5eaf2; border-top: none;
+    border-radius: 0 0 8px 8px; background: #fff;
+    overflow: hidden;
+  }
+  .floor-item-row td { padding: 11px 14px; vertical-align: middle; font-size: 13px; }
+  .floor-item-row:hover td { background: #fafbfc; }
+  .alert-row td { background: #fff8f8 !important; }
+  .alert-row:hover td { background: #fff0f0 !important; }
+
+  /* Stage update inline form */
+  .stage-select { font-size: 12px; border-radius: 5px; border: .5px solid #d8e6f5; padding: 4px 8px; }
+  .worker-select { font-size: 12px; border-radius: 5px; border: .5px solid #d8e6f5; padding: 4px 8px; display: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="page-heading">Processing Floor</h1>
+    <p class="page-subtitle mb-0">
+      {{ total_items }} item{{ 's' if total_items != 1 else '' }} on floor
+      {% if alert_count > 0 %}
+      — <span style="color:var(--accent);font-weight:600;">{{ alert_count }} alert{{ 's' if alert_count != 1 else '' }}</span>
+      {% endif %}
+    </p>
+  </div>
+  <div class="d-flex gap-2">
+    {% if alert_count > 0 %}
+    <a href="{{ url('laundry_alerts') }}" class="btn" style="background:var(--accent-light);color:var(--accent);border:.5px solid #f5c0c0;border-radius:6px;font-size:13px;font-weight:600;">
+      Alerts ({{ alert_count }})
+    </a>
+    {% endif %}
+    <button onclick="location.reload()" class="btn btn-outline-secondary" style="font-size:12px;border-radius:6px;">Refresh</button>
+  </div>
+</div>
+
+{# ── Pipeline summary strip ── #}
+<div class="d-flex align-items-center gap-2 mb-4 flex-wrap">
+  {% for stage, data in grouped.items() %}
+  {% set cnt = data.items|length %}
+  <a href="#stage-{{ stage }}" style="text-decoration:none;">
+    <div style="padding:7px 14px;border-radius:20px;font-size:12px;font-weight:600;
+                {% if cnt > 0 %}
+                  background: #f8f0ff; color: #003580; border: .5px solid #d8e6f5;
+                {% else %}
+                  background: #f5f7fa; color: #bbb; border: .5px solid #e5eaf2;
+                {% endif %}">
+      {{ data.label }}: {{ cnt }}
+    </div>
+  </a>
+  {% if not loop.last %}
+  <div style="color:#ccc;">›</div>
+  {% endif %}
+  {% endfor %}
+</div>
+
+{# ── Per-stage sections ── #}
+{% for stage, data in grouped.items() %}
+{% set items = data.items %}
+
+<div class="stage-section" id="stage-{{ stage }}">
+  <div class="stage-header">
+    <span class="stage-badge
+      {% if stage == 'RECEIVED' %}sb-received
+      {% elif stage == 'SORTING' %}sb-sorting
+      {% elif stage == 'WASHING' %}sb-washing
+      {% elif stage == 'DRYING' %}sb-drying
+      {% elif stage == 'FOLDING' %}sb-folding
+      {% elif stage == 'READY' %}sb-ready
+      {% endif %}
+    ">{{ data.label }}</span>
+    <span class="count-pill">{{ items|length }}</span>
+  </div>
+
+  {% if items %}
+  <div class="stage-body">
+    <table class="table mb-0" style="font-size:13px;">
+      <thead>
+        <tr style="background:#f8fafc;">
+          <th style="padding:9px 14px;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;border-bottom:1.5px solid #e5eaf2;">Tag</th>
+          <th style="padding:9px 14px;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;border-bottom:1.5px solid #e5eaf2;">Type</th>
+          <th style="padding:9px 14px;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;border-bottom:1.5px solid #e5eaf2;">Hospital / Dept</th>
+          <th style="padding:9px 14px;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;border-bottom:1.5px solid #e5eaf2;">Time in Stage</th>
+          <th style="padding:9px 14px;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;border-bottom:1.5px solid #e5eaf2;">Worker</th>
+          <th style="padding:9px 14px;font-size:11px;text-transform:uppercase;color:#6b7280;font-weight:600;border-bottom:1.5px solid #e5eaf2;">Move To</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr class="floor-item-row {% if item.has_alert %}alert-row{% endif %}">
+          <td>
+            <code style="font-size:12px;color:#003580;font-weight:600;">{{ item.tag_number }}</code>
+            {% if item.has_alert %}
+            <span class="stage-badge sb-alert ms-1 alert-pulse">Alert</span>
+            {% endif %}
+          </td>
+          <td style="color:#444;">{{ item.get_item_type_display() }}</td>
+          <td>
+            <div style="font-weight:500;color:#1e3a6e;">{{ item.order.hospital.hospital_name }}</div>
+            <div style="font-size:11px;color:#888;">{{ item.department.department_name if item.department else '—' }}</div>
+          </td>
+          <td>
+            <span style="font-size:12px;{% if item.stale %}color:var(--accent);font-weight:600;{% else %}color:#555;{% endif %}">
+              {{ item.time_in_stage_str }}
+              {% if item.stale %} ⚠{% endif %}
+            </span>
+          </td>
+          <td style="font-size:12px;color:#444;">
+            {{ item.first_worker.full_name if item.first_worker else '—' }}
+          </td>
+          <td>
+            <form method="post" action="{{ url('laundry_update_stage') }}" class="d-flex align-items-center gap-2">
+              {{ csrf_input }}
+              <input type="hidden" name="tag_number" value="{{ item.tag_number }}">
+              <select name="new_stage" class="stage-select" id="stageSelect-{{ item.pk }}"
+                      onchange="checkWorkerRequired('{{ item.pk }}', this.value, {{ 'true' if item.first_worker else 'false' }})">
+                {% for sv, sl in [('RECEIVED','Received'),('SORTING','Sorting'),('WASHING','Washing'),('DRYING','Drying'),('FOLDING','Folding'),('READY','Ready')] %}
+                <option value="{{ sv }}" {% if sv == stage %}selected{% endif %}>{{ sl }}</option>
+                {% endfor %}
+              </select>
+              <select name="worker_id" class="worker-select" id="workerSelect-{{ item.pk }}">
+                <option value="">— Worker —</option>
+                {% for wp in workers %}
+                <option value="{{ wp.user.id }}">{{ wp.user.full_name or wp.user.email }}</option>
+                {% endfor %}
+              </select>
+              <button type="submit" class="btn-accent-sm">Move</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="stage-body" style="padding:1rem 1.5rem;font-size:13px;color:#aaa;text-align:center;">
+    No items in {{ data.label }}
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+
+{% endblock %}
+
+{% block scripts %}{{ super() }}
+<script>
+function checkWorkerRequired(itemPk, newStage, hasFirstWorker) {
+  const ws = document.getElementById('workerSelect-' + itemPk);
+  if (!ws) return;
+  ws.style.display = (newStage === 'WASHING' && !hasFirstWorker) ? 'inline-block' : 'none';
+  ws.required = (newStage === 'WASHING' && !hasFirstWorker);
+}
+// Init on load
+document.querySelectorAll('[id^="stageSelect-"]').forEach(sel => {
+  const pk = sel.id.replace('stageSelect-', '');
+  const hasFirst = sel.dataset.hasFirst === 'true';
+  checkWorkerRequired(pk, sel.value, hasFirst);
+});
+</script>
+{% endblock %}

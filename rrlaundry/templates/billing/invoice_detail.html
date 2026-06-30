@@ -1,0 +1,130 @@
+{% extends "hospital/base_hospital.html" %}
+{% block page_title %}{{ invoice.invoice_number }}{% endblock %}
+
+{% block content %}
+
+{# ── Breadcrumb + header ── #}
+<div class="d-flex align-items-start justify-content-between mb-4 flex-wrap gap-3">
+  <div>
+    <div style="font-size:12px;color:#888;margin-bottom:4px;">
+      <a href="{{ url('billing_invoice_list') }}" style="color:#888;text-decoration:none;">Invoices</a>
+      <span class="mx-1">›</span>
+      <span>{{ invoice.invoice_number }}</span>
+    </div>
+    <h1 class="page-heading">{{ invoice.invoice_number }}</h1>
+    <p class="page-subtitle mb-0">Generated {{ invoice.generated_at.strftime('%d %B %Y, %H:%M') }}</p>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    {% if invoice.status == 'PAID' %}
+      <span class="status-badge sb-delivered" style="font-size:13px;padding:6px 16px;">Paid</span>
+    {% elif invoice.is_overdue() %}
+      <span class="status-badge sb-flagged" style="font-size:13px;padding:6px 16px;">Overdue</span>
+    {% else %}
+      <span class="status-badge sb-laundry" style="font-size:13px;padding:6px 16px;">Pending</span>
+    {% endif %}
+
+    {% if invoice.status == 'PENDING' %}
+    <form method="post" action="{{ url('billing_invoice_detail', invoice_id=invoice.invoice_id) }}" class="d-inline">
+      {{ csrf_input }}
+      <button type="submit" class="btn btn-accent btn-sm" style="font-size:12px;padding:6px 16px;">
+        Mark as Paid
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Meta cards ── #}
+<div class="row g-3 mb-4">
+  <div class="col-12 col-md-4">
+    <div class="card-section" style="margin-bottom:0;">
+      <div class="card-section-title">Hospital</div>
+      <div style="font-size:13px;line-height:1.9;color:#444;">
+        <div><strong>{{ invoice.hospital.hospital_name }}</strong></div>
+        <div style="color:#888;">{{ invoice.hospital.hospital_address }}</div>
+        <div style="color:#888;">{{ invoice.hospital.area }}, {{ invoice.hospital.city }}</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="card-section" style="margin-bottom:0;">
+      <div class="card-section-title">Laundry Partner</div>
+      {% if invoice.laundry_partner %}
+      <div style="font-size:13px;line-height:1.9;color:#444;">
+        <div><strong>{{ invoice.laundry_partner.business_name }}</strong></div>
+        <div style="color:#888;">{{ invoice.laundry_partner.area }}, {{ invoice.laundry_partner.city }}</div>
+        <div style="color:var(--accent);font-weight:600;">₹{{ invoice.price_per_item }} / item</div>
+      </div>
+      {% else %}
+      <div style="font-size:13px;color:#888;">Not recorded</div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="card-section" style="margin-bottom:0;">
+      <div class="card-section-title">Payment Info</div>
+      <div style="font-size:13px;line-height:1.9;color:#444;">
+        <div><span style="color:#888;font-size:11px;">ORDER</span><br>
+          <a href="{{ url('hospital_order_detail', order_id=invoice.order.order_id) }}"
+             style="color:var(--accent);font-weight:600;text-decoration:none;">
+            #{{ invoice.order.short_id }}
+          </a>
+        </div>
+        <div class="mt-1"><span style="color:#888;font-size:11px;">DUE DATE</span><br>
+          <strong {% if invoice.is_overdue() %}style="color:#c00;"{% endif %}>
+            {{ invoice.due_date.strftime('%d %B %Y') }}
+          </strong>
+        </div>
+        {% if invoice.paid_at %}
+        <div class="mt-1"><span style="color:#888;font-size:11px;">PAID ON</span><br>
+          <strong style="color:#166534;">{{ invoice.paid_at.strftime('%d %B %Y, %H:%M') }}</strong>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Line items table ── #}
+<div class="card-section p-0">
+  <div class="px-4 py-3">
+    <div class="card-section-title mb-0">Department Breakdown</div>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-portal mb-0">
+      <thead>
+        <tr>
+          <th style="padding-left:1.5rem;">Department</th>
+          <th class="text-center">Items</th>
+          <th class="text-end">Rate / Item</th>
+          <th class="text-end" style="padding-right:1.5rem;">Line Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for li in invoice.line_items.all() %}
+        <tr>
+          <td style="padding-left:1.5rem;font-weight:500;">
+            {{ li.department.department_name if li.department else 'Unassigned' }}
+          </td>
+          <td class="text-center">{{ li.item_count }}</td>
+          <td class="text-end" style="color:#888;">₹{{ li.price_per_item }}</td>
+          <td class="text-end" style="padding-right:1.5rem;font-weight:600;">₹{{ li.line_total }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr style="background:#f8fafc;">
+          <td colspan="2" style="padding-left:1.5rem;font-weight:700;color:#003580;">
+            Total — {{ invoice.total_items }} item{{ 's' if invoice.total_items != 1 else '' }}
+          </td>
+          <td></td>
+          <td class="text-end" style="padding-right:1.5rem;font-weight:700;font-size:16px;color:#003580;">
+            ₹{{ invoice.total_amount }}
+          </td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

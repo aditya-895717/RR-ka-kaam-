@@ -1,0 +1,89 @@
+{% extends "delivery/base_delivery.html" %}
+
+{% block page_title %}My Jobs{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <h1 class="page-heading mb-0">Active Jobs</h1>
+</div>
+
+{# ── Filters ── #}
+<form method="get" class="card-section mb-4" style="padding:14px 18px;">
+  <div class="row g-2 align-items-end">
+    <div class="col-12 col-sm-4">
+      <label class="form-label-sm">Type</label>
+      <select name="type" class="form-select form-select-sm" style="background:#1a1a1a;border-color:#333;color:#fff;">
+        <option value="">All Types</option>
+        {% for val, label in job_type_choices %}
+        <option value="{{ val }}" {% if val == type_filter %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12 col-sm-4">
+      <label class="form-label-sm">Status</label>
+      <select name="status" class="form-select form-select-sm" style="background:#1a1a1a;border-color:#333;color:#fff;">
+        <option value="">All Statuses</option>
+        {% for val, label in job_status_choices %}
+        <option value="{{ val }}" {% if val == status_filter %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-12 col-sm-4">
+      <button type="submit" class="btn btn-sm w-100" style="background:var(--accent);color:#fff;border:none;padding:7px;">Filter</button>
+    </div>
+  </div>
+</form>
+
+{% if jobs %}
+<div class="table-responsive">
+  <table class="table-portal">
+    <thead>
+      <tr>
+        <th>Job ID</th>
+        <th>Hospital</th>
+        <th>Department</th>
+        <th>Order</th>
+        <th>Type</th>
+        <th>Status</th>
+        <th>Assigned</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for job in jobs %}
+      <tr>
+        <td><code style="font-size:11px;color:#aaa;">{{ job.short_id }}</code></td>
+        <td style="font-weight:600;">{{ job.order.hospital.hospital_name }}</td>
+        <td style="color:#aaa;">{{ job.order.department.department_name if job.order.department else '—' }}</td>
+        <td><code style="font-size:11px;color:#aaa;">#{{ job.order.short_id }}</code></td>
+        <td>
+          <span class="job-badge jb-{{ job.job_type|lower }}">{{ job.get_job_type_display() }}</span>
+        </td>
+        <td>
+          <span class="job-badge jb-{{ job.status|lower }}">{{ job.get_status_display() }}</span>
+        </td>
+        <td style="color:#777;font-size:12px;">{{ job.assigned_at|date('d M Y') }}</td>
+        <td>
+          {% if job.job_type == 'PICKUP' %}
+          <a href="{{ url('delivery_scan_pickup', job_id=job.job_id) }}"
+             style="font-size:12px;color:var(--accent);font-weight:600;text-decoration:none;">
+            Scan →
+          </a>
+          {% else %}
+          <a href="{{ url('delivery_scan_delivery', job_id=job.job_id) }}"
+             style="font-size:12px;color:#4caf50;font-weight:600;text-decoration:none;">
+            Scan →
+          </a>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div style="text-align:center;padding:60px 0;color:#555;font-size:14px;">
+  No active jobs match your filters.
+</div>
+{% endif %}
+{% endblock %}

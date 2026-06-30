@@ -1,0 +1,104 @@
+{% extends "laundry/base_laundry.html" %}
+{% block page_title %}Workers{% endblock %}
+
+{% block content %}
+
+<div class="mb-4">
+  <h1 class="page-heading">Worker Management</h1>
+  <p class="page-subtitle mb-0">
+    {{ worker_profiles|length }} worker{{ 's' if worker_profiles|length != 1 else '' }} at {{ profile.business_name }}
+  </p>
+</div>
+
+{% set msgs = get_messages(request) %}
+{% if msgs %}
+{% for msg in msgs %}
+<div class="alert alert-portal alert-info mb-3" style="background:#e8f4ff;border:none;color:#1e3a6e;font-size:13px;">
+  {{ msg }}
+</div>
+{% endfor %}
+{% endif %}
+
+{% if worker_profiles %}
+<div class="row g-3">
+  {% for wp in worker_profiles %}
+  {% set assigned = worker_item_map.get(wp.user_id, []) %}
+
+  <div class="col-12 col-md-6">
+    <div class="card-section">
+      {# Worker header #}
+      <div class="d-flex align-items-start gap-3 mb-3">
+        <div style="width:42px;height:42px;border-radius:50%;background:var(--accent-light);color:var(--accent);font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          {{ (wp.user.full_name or wp.user.email)[:1].upper() }}
+        </div>
+        <div>
+          <div style="font-weight:700;font-size:14px;color:#1e3a6e;">
+            {{ wp.user.full_name or wp.user.email }}
+          </div>
+          <div style="font-size:12px;color:#888;">{{ wp.user.email }}</div>
+          <div style="font-size:12px;color:#888;">{{ wp.phone_number or '—' }}</div>
+        </div>
+        <div class="ms-auto">
+          <span style="font-size:12px;font-weight:600;background:#e6f7ef;color:#166534;border-radius:20px;padding:3px 12px;">
+            {{ assigned|length }} item{{ 's' if assigned|length != 1 else '' }}
+          </span>
+        </div>
+      </div>
+
+      {# Assigned items #}
+      {% if assigned %}
+      <div style="border-top:.5px solid #e8eef5;padding-top:.75rem;">
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:#6b7280;margin-bottom:.5rem;">
+          Currently Assigned
+        </div>
+        <div class="table-responsive">
+          <table class="table mb-0" style="font-size:12px;">
+            <thead>
+              <tr>
+                <th style="padding:6px 10px;font-size:10px;text-transform:uppercase;color:#6b7280;border-bottom:1px solid #e5eaf2;">Tag</th>
+                <th style="padding:6px 10px;font-size:10px;text-transform:uppercase;color:#6b7280;border-bottom:1px solid #e5eaf2;">Type</th>
+                <th style="padding:6px 10px;font-size:10px;text-transform:uppercase;color:#6b7280;border-bottom:1px solid #e5eaf2;">Hospital</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for wa in assigned %}
+              <tr>
+                <td style="padding:7px 10px;border-bottom:1px solid #f5f7fa;">
+                  <code style="color:#003580;">{{ wa.order_item.tag_number }}</code>
+                </td>
+                <td style="padding:7px 10px;border-bottom:1px solid #f5f7fa;color:#555;">
+                  {{ wa.order_item.get_item_type_display() }}
+                </td>
+                <td style="padding:7px 10px;border-bottom:1px solid #f5f7fa;color:#555;">
+                  {{ wa.order_item.order.hospital.hospital_name }}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% else %}
+      <div style="border-top:.5px solid #e8eef5;padding-top:.75rem;font-size:12px;color:#aaa;text-align:center;">
+        No items currently assigned
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% endfor %}
+</div>
+{% else %}
+<div class="card-section" style="text-align:center;padding:3rem;">
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d8e6f5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto 12px;display:block;">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+    <circle cx="9" cy="7" r="4"/>
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+  </svg>
+  <div style="font-size:14px;color:#aaa;">No workers registered yet.</div>
+  <div style="font-size:12px;color:#bbb;margin-top:4px;">Workers are added through the onboarding flow (LAUNDRY_WORKER role).</div>
+</div>
+{% endif %}
+
+{% endblock %}

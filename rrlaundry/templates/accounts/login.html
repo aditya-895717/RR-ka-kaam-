@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In — RR Laundry</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --navy:       #003580;
+      --sky:        #0071CE;
+      --blue-mid:   #185FA5;
+      --blue-light: #E6F1FB;
+      --blue-text:  #0C447C;
+      --white:      #ffffff;
+      --gray-50:    #f9fafb;
+      --gray-100:   #f3f4f6;
+      --gray-300:   #e0e0e0;
+      --gray-500:   #6b7280;
+      --gray-700:   #374151;
+    }
+
+    html, body { height: 100%; font-family: 'Inter', system-ui, sans-serif; }
+
+    /* ═══════════════════════════════════
+       Two-column layout
+    ═══════════════════════════════════ */
+    .login-wrap {
+      display: grid;
+      grid-template-columns: 42% 1fr;
+      min-height: 100vh;
+    }
+
+    /* ═══════════════════════════════════
+       Left panel
+    ═══════════════════════════════════ */
+    .left-panel {
+      background: var(--navy);
+      padding: 52px 44px;
+      position: relative;
+      overflow: hidden;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Decorative blobs */
+    .blob {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    .blob-1 { width: 240px; height: 240px; background: rgba(0,113,206,.18); top: -70px; right: -90px; }
+    .blob-2 { width: 170px; height: 170px; background: rgba(0,113,206,.12); bottom: 10px; left: -55px; }
+
+    .brand { margin-bottom: 56px; }
+    .brand-name { font-size: 22px; font-weight: 700; letter-spacing: -.3px; }
+    .brand-sub  { font-size: 12px; color: rgba(255,255,255,.5); margin-top: 3px; }
+
+    .shirt-bubble {
+      width: 58px; height: 58px;
+      background: rgba(255,255,255,.1);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 28px;
+    }
+
+    .hero-headline {
+      font-size: 30px; font-weight: 700; line-height: 1.25;
+      letter-spacing: -.5px; margin-bottom: 16px;
+    }
+    .hero-headline .accent { color: var(--sky); }
+
+    .hero-body {
+      font-size: 14px; color: rgba(255,255,255,.6);
+      line-height: 1.65; max-width: 280px; margin-bottom: 48px;
+    }
+
+    .trust-list { margin-top: auto; }
+
+    .trust-item {
+      display: flex; align-items: flex-start; gap: 13px;
+      margin-bottom: 22px;
+    }
+    .trust-item:last-child { margin-bottom: 0; }
+
+    .trust-icon {
+      width: 38px; height: 38px; flex-shrink: 0;
+      background: rgba(255,255,255,.1);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin-top: 1px;
+    }
+
+    .trust-title { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 2px; }
+    .trust-sub   { font-size: 11px; color: rgba(255,255,255,.48); }
+
+    /* ═══════════════════════════════════
+       Right panel
+    ═══════════════════════════════════ */
+    .right-panel {
+      background: #fff;
+      display: flex; align-items: center; justify-content: center;
+      padding: 48px 28px;
+    }
+
+    .form-box { width: 100%; max-width: 400px; }
+
+    .badge-eyebrow {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--blue-light); color: var(--blue-text);
+      border-radius: 20px; padding: 5px 14px;
+      font-size: 12px; font-weight: 500;
+      margin-bottom: 20px;
+    }
+
+    .form-title {
+      font-size: 27px; font-weight: 700; color: #111;
+      letter-spacing: -.4px; margin-bottom: 6px;
+    }
+    .form-subtitle {
+      font-size: 14px; color: var(--gray-500); margin-bottom: 28px;
+    }
+
+    /* Alerts */
+    .alert {
+      border-radius: 6px; padding: 10px 14px;
+      font-size: 13px; line-height: 1.4;
+    }
+    .alert-error   { background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c; margin-bottom: 20px; }
+    .alert-success { background: #f0fdf4; border: 1px solid #86efac; color: #166534; }
+    .alert-danger  { background: #fef2f2; border: 1px solid #fca5a5; color: #b91c1c; }
+
+    /* Google button */
+    .btn-google {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      height: 44px; width: 100%;
+      border-radius: 8px; border: 1px solid var(--gray-300);
+      background: var(--gray-100);
+      font-size: 14px; font-weight: 500; color: var(--gray-700);
+      text-decoration: none;
+      transition: border-color .15s, background .15s, color .15s;
+    }
+    .btn-google:hover {
+      border-color: var(--blue-mid);
+      background: var(--blue-light);
+      color: var(--blue-text);
+    }
+
+    /* Divider */
+    .divider {
+      display: flex; align-items: center; gap: 10px;
+      margin: 22px 0;
+      color: #9ca3af; font-size: 12px;
+    }
+    .divider::before, .divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--gray-300);
+    }
+
+    /* Form elements */
+    .form-group { margin-bottom: 16px; }
+
+    .form-label {
+      display: block;
+      font-size: 13px; font-weight: 500; color: var(--gray-700);
+      margin-bottom: 5px;
+    }
+
+    .form-input {
+      display: block; width: 100%; height: 40px;
+      padding: 0 12px;
+      border-radius: 6px; border: 0.5px solid var(--gray-300);
+      font-size: 14px; font-family: 'Inter', sans-serif; color: #111;
+      background: #fff; outline: none;
+      transition: border-color .15s;
+    }
+    .form-input:focus { border-color: var(--blue-mid); border-width: 1px; }
+    .form-input::placeholder { color: #adb5bd; }
+
+    .pw-row {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 5px;
+    }
+
+    .forgot-link {
+      font-size: 12px; color: var(--blue-mid); text-decoration: none;
+    }
+    .forgot-link:hover { text-decoration: underline; }
+
+    /* Primary button */
+    .btn-primary {
+      display: block; width: 100%; height: 40px;
+      background: var(--navy); color: #fff;
+      border: none; border-radius: 6px;
+      font-size: 14px; font-weight: 600; font-family: 'Inter', sans-serif;
+      cursor: pointer; transition: background .15s;
+      margin-top: 20px;
+    }
+    .btn-primary:hover   { background: var(--blue-text); }
+    .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+
+    /* Ghost toggle link */
+    .toggle-link {
+      display: block; width: 100%; background: none;
+      border: none; font-family: 'Inter', sans-serif;
+      font-size: 13px; color: var(--blue-mid);
+      text-align: center; cursor: pointer; padding: 8px 0;
+    }
+    .toggle-link:hover { text-decoration: underline; }
+
+    /* Footer */
+    .form-footer {
+      margin-top: 24px; text-align: center;
+      font-size: 13px; color: var(--gray-500);
+    }
+    .form-footer a { color: var(--navy); font-weight: 600; text-decoration: none; }
+    .form-footer a:hover { text-decoration: underline; }
+
+    /* Trust badges */
+    .trust-badges {
+      display: flex; justify-content: center; gap: 20px;
+      margin-top: 22px; padding-top: 20px;
+      border-top: 1px solid var(--gray-300);
+    }
+    .trust-badge {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 11px; color: var(--gray-500);
+    }
+
+    /* ═══════════════════════════════════
+       OTP section
+    ═══════════════════════════════════ */
+    #otp-section {
+      padding-top: 20px;
+      border-top: 1px dashed var(--gray-300);
+      margin-top: 4px;
+    }
+    .otp-section-label {
+      font-size: 13px; font-weight: 600; color: var(--gray-700);
+      margin-bottom: 14px;
+    }
+    #id-otp-code {
+      text-align: center; font-size: 22px; letter-spacing: 10px; font-weight: 700;
+    }
+
+    /* ═══════════════════════════════════
+       Responsive — stack on mobile
+    ═══════════════════════════════════ */
+    @media (max-width: 600px) {
+      .login-wrap          { grid-template-columns: 1fr; }
+      .left-panel          { min-height: 200px; padding: 32px 24px; }
+      .hero-headline       { font-size: 22px; }
+      .trust-list, .blob   { display: none; }
+      .hero-body           { margin-bottom: 0; }
+      .right-panel         { padding: 32px 20px; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+<div class="login-wrap">
+
+  <!-- ══════════════════════════════════
+       LEFT PANEL
+  ══════════════════════════════════ -->
+  <div class="left-panel">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <div class="brand">
+      <div class="brand-name">RR Laundry</div>
+      <div class="brand-sub">Varanasi's trusted laundry</div>
+    </div>
+
+    <div class="shirt-bubble">
+      <!-- Shirt / laundry icon -->
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
+           stroke="rgba(255,255,255,0.85)" stroke-width="1.5"
+           stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20.38 3.46 12 5.56 3.62 3.46A2 2 0 0 0 2 5.38v2.24l5 3.12V20a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-9.26l5-3.12V5.38a2 2 0 0 0-1.62-1.92z"/>
+      </svg>
+    </div>
+
+    <p class="hero-headline">
+      Fresh clothes,<br>
+      <span class="accent">zero hassle.</span>
+    </p>
+    <p class="hero-body">
+      Schedule pickups, track orders, and manage laundry from one dashboard.
+    </p>
+
+    <div class="trust-list">
+      <!-- Trust 1 -->
+      <div class="trust-item">
+        <div class="trust-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="rgba(255,255,255,0.8)" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+          </svg>
+        </div>
+        <div>
+          <div class="trust-title">24-hour turnaround</div>
+          <div class="trust-sub">Express delivery at your door</div>
+        </div>
+      </div>
+      <!-- Trust 2 -->
+      <div class="trust-item">
+        <div class="trust-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="rgba(255,255,255,0.8)" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+        </div>
+        <div>
+          <div class="trust-title">Pickup from anywhere</div>
+          <div class="trust-sub">Lanka, Sigra, Assi Ghat &amp; more</div>
+        </div>
+      </div>
+      <!-- Trust 3 -->
+      <div class="trust-item">
+        <div class="trust-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+               stroke="rgba(255,255,255,0.8)" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+        </div>
+        <div>
+          <div class="trust-title">4,00,000+ happy customers</div>
+          <div class="trust-sub">Across 72+ stores in India</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════
+       RIGHT PANEL
+  ══════════════════════════════════ -->
+  <div class="right-panel">
+    <div class="form-box">
+
+      <div class="badge-eyebrow">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2.5"
+             stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+          <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        </svg>
+        Customer login
+      </div>
+
+      <h1 class="form-title">Welcome back</h1>
+      <p class="form-subtitle">Sign in to manage your orders and pickups.</p>
+
+      {% if error %}
+      <div class="alert alert-error">{{ error }}</div>
+      {% endif %}
+
+      <!-- Google OAuth -->
+      <a href="/accounts/google/login/" class="btn-google">
+        <svg width="18" height="18" viewBox="0 0 48 48">
+          <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+          <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+          <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+          <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+        </svg>
+        Continue with Google
+      </a>
+
+      <div class="divider">or use email</div>
+
+      <!-- ── Password section ── -->
+      <div id="pw-section">
+        <form method="post" action="{{ url('account_login') }}" novalidate>
+          {{ csrf_input }}
+          <div class="form-group">
+            <label class="form-label" for="id_email">Email</label>
+            <input
+              id="id_email" type="email" name="email" class="form-input"
+              value="{{ form_data.email if form_data else '' }}"
+              placeholder="you@example.com" required autofocus
+            >
+          </div>
+          <div class="form-group">
+            <div class="pw-row">
+              <label class="form-label" for="id_password" style="margin:0">Password</label>
+              <a href="#" class="forgot-link">Forgot password?</a>
+            </div>
+            <input
+              id="id_password" type="password" name="password" class="form-input"
+              placeholder="••••••••" required
+            >
+          </div>
+          <button type="submit" class="btn-primary">Sign in</button>
+        </form>
+
+        <button class="toggle-link" id="show-otp" type="button">
+          Sign in with OTP instead &rarr;
+        </button>
+      </div>
+
+      <!-- ── OTP section (hidden by default) ── -->
+      <div id="otp-section" style="display:none">
+        <div class="otp-section-label">Sign in with OTP</div>
+
+        <div id="otp-alert" style="display:none;margin-bottom:14px"></div>
+
+        <!-- Step 1: request OTP -->
+        <div id="otp-step1">
+          <div class="form-group">
+            <label class="form-label" for="id-otp-email">Email</label>
+            <input id="id-otp-email" type="email" class="form-input" placeholder="you@example.com">
+          </div>
+          <button id="btn-send-otp" class="btn-primary" type="button">Send OTP</button>
+        </div>
+
+        <!-- Step 2: enter OTP -->
+        <div id="otp-step2" style="display:none">
+          <p style="font-size:13px;color:#6b7280;margin-bottom:14px">
+            OTP sent to <strong id="otp-sent-to"></strong>. Valid for 10 minutes.
+          </p>
+          <div class="form-group">
+            <label class="form-label" for="id-otp-code">OTP Code</label>
+            <input
+              id="id-otp-code" type="text" inputmode="numeric" maxlength="6"
+              class="form-input" id="id-otp-code"
+              placeholder="· · · · · ·" autocomplete="one-time-code"
+              style="text-align:center;font-size:22px;letter-spacing:10px;font-weight:700"
+            >
+          </div>
+          <button id="btn-verify-otp" class="btn-primary" type="button">Verify &amp; Sign in</button>
+          <button id="btn-resend-otp" class="toggle-link" type="button" style="margin-top:6px">
+            Resend OTP
+          </button>
+        </div>
+
+        <button class="toggle-link" id="show-pw" type="button" style="margin-top:12px">
+          &larr; Back to email &amp; password
+        </button>
+      </div>
+
+      <!-- Footer -->
+      <p class="form-footer">
+        New to RR Laundry?
+        <a href="{{ url('account_signup') }}">Create an account</a>
+      </p>
+
+      <!-- Trust badges -->
+      <div class="trust-badges">
+        <div class="trust-badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          Secure
+        </div>
+        <div class="trust-badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+          Private
+        </div>
+        <div class="trust-badge">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="5" y="2" width="14" height="20" rx="2" ry="2"/>
+            <line x1="12" y1="18" x2="12.01" y2="18"/>
+          </svg>
+          App available
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var CSRF = (document.cookie.match(/csrftoken=([^;]+)/) || ['', ''])[1];
+
+  var pwSec   = document.getElementById('pw-section');
+  var otpSec  = document.getElementById('otp-section');
+  var otpStep1 = document.getElementById('otp-step1');
+  var otpStep2 = document.getElementById('otp-step2');
+  var alertEl  = document.getElementById('otp-alert');
+
+  /* Section toggles */
+  document.getElementById('show-otp').addEventListener('click', function () {
+    pwSec.style.display  = 'none';
+    otpSec.style.display = 'block';
+    document.getElementById('id-otp-email').focus();
+  });
+  document.getElementById('show-pw').addEventListener('click', function () {
+    otpSec.style.display = 'none';
+    pwSec.style.display  = 'block';
+  });
+
+  /* Alert helpers */
+  function showAlert(msg, type) {
+    alertEl.className     = 'alert alert-' + type;
+    alertEl.textContent   = msg;
+    alertEl.style.display = 'block';
+  }
+  function clearAlert() { alertEl.style.display = 'none'; }
+
+  /* Send OTP */
+  document.getElementById('btn-send-otp').addEventListener('click', function () {
+    var email = document.getElementById('id-otp-email').value.trim();
+    if (!email) { showAlert('Please enter your email address.', 'danger'); return; }
+    var btn = this;
+    btn.disabled    = true;
+    btn.textContent = 'Sending…';
+    clearAlert();
+
+    fetch('/accounts/otp/request/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRFToken': CSRF,
+      },
+      body: 'email=' + encodeURIComponent(email),
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.success) {
+        document.getElementById('otp-sent-to').textContent = email;
+        otpStep1.style.display = 'none';
+        otpStep2.style.display = 'block';
+        showAlert('OTP sent — check your inbox.', 'success');
+        document.getElementById('id-otp-code').focus();
+      } else {
+        showAlert(data.error || 'Failed to send OTP. Try again.', 'danger');
+      }
+    })
+    .catch(function () { showAlert('Network error. Please try again.', 'danger'); })
+    .then(function () { btn.disabled = false; btn.textContent = 'Send OTP'; });
+  });
+
+  /* Verify OTP */
+  function doVerify() {
+    var email = document.getElementById('id-otp-email').value.trim();
+    var code  = document.getElementById('id-otp-code').value.trim();
+    if (!code || !/^\d{6}$/.test(code)) {
+      showAlert('Please enter the 6-digit OTP.', 'danger');
+      return;
+    }
+    var btn = document.getElementById('btn-verify-otp');
+    btn.disabled    = true;
+    btn.textContent = 'Verifying…';
+    clearAlert();
+
+    fetch('/accounts/otp/verify/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRFToken': CSRF,
+      },
+      body: 'email=' + encodeURIComponent(email) + '&otp_code=' + encodeURIComponent(code),
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.success) {
+        showAlert('Verified! Redirecting…', 'success');
+        window.location.href = data.redirect;
+      } else {
+        showAlert(data.error || 'Verification failed.', 'danger');
+        btn.disabled    = false;
+        btn.textContent = 'Verify & Sign in';
+      }
+    })
+    .catch(function () {
+      showAlert('Network error. Please try again.', 'danger');
+      btn.disabled    = false;
+      btn.textContent = 'Verify & Sign in';
+    });
+  }
+
+  document.getElementById('btn-verify-otp').addEventListener('click', doVerify);
+
+  document.getElementById('id-otp-code').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') doVerify();
+  });
+
+  /* Resend OTP — go back to step 1 */
+  document.getElementById('btn-resend-otp').addEventListener('click', function () {
+    otpStep2.style.display = 'none';
+    otpStep1.style.display = 'block';
+    document.getElementById('id-otp-code').value = '';
+    clearAlert();
+  });
+})();
+</script>
+</body>
+</html>

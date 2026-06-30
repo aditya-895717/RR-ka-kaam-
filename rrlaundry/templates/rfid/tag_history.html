@@ -1,0 +1,184 @@
+{% extends "base_portal.html" %}
+{% block title %}Tag {{ tag_number }} — Audit Trail{% endblock %}
+{% block page_title %}RFID Audit Trail{% endblock %}
+
+{% block extra_css %}{{ super() }}
+<style>
+  .tag-pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--light); border-radius: 6px; padding: 6px 14px;
+    font-family: monospace; font-size: 15px; font-weight: 700;
+    color: var(--navy); letter-spacing: .5px;
+  }
+  .timeline { position: relative; padding-left: 2.5rem; }
+  .timeline::before {
+    content: ''; position: absolute; left: 13px; top: 12px; bottom: 12px;
+    width: 2px; background: #d8e6f5;
+  }
+  .tl-entry { position: relative; margin-bottom: 1.75rem; }
+  .tl-entry:last-child { margin-bottom: 0; }
+
+  .tl-dot {
+    position: absolute; left: -2.5rem; top: 2px;
+    width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: #fff; border: 2px solid #d0deee;
+    font-size: 11px; font-weight: 700; color: #aaa;
+    z-index: 1;
+  }
+  .tl-dot.create   { background: var(--light); border-color: var(--navy); color: var(--navy); }
+  .tl-dot.pickup   { background: #fff8e1; border-color: #f59e0b; color: #f59e0b; }
+  .tl-dot.received { background: #e8f5e9; border-color: #43a047; color: #43a047; }
+  .tl-dot.dispatch { background: #e3f2fd; border-color: var(--sky); color: var(--sky); }
+  .tl-dot.delivery { background: #f3e5f5; border-color: #8e24aa; color: #8e24aa; }
+  .tl-dot.scan     { background: var(--light); border-color: var(--mid); color: var(--mid); }
+
+  .tl-card {
+    background: #fff; border: 1px solid #e4edf7; border-radius: 6px;
+    padding: 12px 16px;
+  }
+  .tl-event { font-size: 13px; font-weight: 700; color: var(--btext); margin-bottom: 4px; }
+  .tl-meta  { font-size: 11px; color: #8a9ab0; display: flex; flex-wrap: wrap; gap: 12px; }
+  .tl-meta-item { display: flex; align-items: center; gap: 4px; }
+
+  .info-row { display: flex; gap: 24px; flex-wrap: wrap; }
+  .info-item { display: flex; flex-direction: column; }
+  .info-label { font-size: 10px; font-weight: 600; letter-spacing: .6px;
+                text-transform: uppercase; color: #8a9ab0; margin-bottom: 2px; }
+  .info-value { font-size: 13px; font-weight: 600; color: #1e3a6e; }
+
+  .no-events {
+    background: #f8fafc; border: 1px dashed #d0deee;
+    border-radius: 6px; padding: 32px; text-align: center;
+    color: #8a9ab0; font-size: 13px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="mb-4">
+  <div class="d-flex align-items-center gap-3 flex-wrap">
+    <div>
+      <h1 class="page-heading mb-1">Audit Trail</h1>
+      <p class="page-subtitle mb-0">Complete RFID scan history for this tag</p>
+    </div>
+    <div class="tag-pill">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+        <line x1="7" y1="7" x2="7.01" y2="7"/>
+      </svg>
+      {{ tag_number }}
+    </div>
+  </div>
+</div>
+
+{% if item %}
+{# ── Item summary card ── #}
+<div class="card-section mb-4" style="max-width: 640px;">
+  <div class="card-section-title mb-3">Item Details</div>
+  <div class="info-row">
+    <div class="info-item">
+      <span class="info-label">Type</span>
+      <span class="info-value">{{ item.get_item_type_display() }}</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">Current Status</span>
+      <span class="info-value">{{ item.hospital_status_label() }}</span>
+    </div>
+    {% if order %}
+    <div class="info-item">
+      <span class="info-label">Order</span>
+      <span class="info-value" style="font-family:monospace;">#{{ order.short_id }}</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">Hospital</span>
+      <span class="info-value">{{ order.hospital.hospital_name }}</span>
+    </div>
+    {% endif %}
+    {% if item.last_scanned_at %}
+    <div class="info-item">
+      <span class="info-label">Last Scan</span>
+      <span class="info-value">{{ item.last_scanned_at.strftime('%d %b %Y, %H:%M') }}</span>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% else %}
+<div class="alert alert-warning" style="max-width:560px;border-radius:6px;font-size:13px;">
+  Tag <strong>{{ tag_number }}</strong> is not registered in any order.
+</div>
+{% endif %}
+
+{# ── Timeline ── #}
+<div class="card-section" style="max-width: 640px;">
+  <div class="card-section-title mb-4">Scan Timeline</div>
+
+  {% if timeline %}
+  <div class="timeline">
+    {% for entry in timeline %}
+    <div class="tl-entry">
+      <div class="tl-dot {{ entry.icon }}">
+        {% if entry.icon == 'create' %}
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
+          </svg>
+        {% elif entry.icon == 'pickup' %}
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        {% elif entry.icon == 'received' %}
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+          </svg>
+        {% elif entry.icon == 'dispatch' %}
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        {% elif entry.icon == 'delivery' %}
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+          </svg>
+        {% else %}
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+            <line x1="7" y1="7" x2="7.01" y2="7"/>
+          </svg>
+        {% endif %}
+      </div>
+      <div class="tl-card">
+        <div class="tl-event">{{ entry.label }}</div>
+        <div class="tl-meta">
+          <span class="tl-meta-item">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+            </svg>
+            {{ entry.timestamp.strftime('%d %b %Y, %H:%M') }}
+          </span>
+          <span class="tl-meta-item">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+            </svg>
+            {{ entry.actor }}
+          </span>
+          <span class="tl-meta-item">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+            </svg>
+            {{ entry.location }}
+          </span>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="no-events">
+    No scan events recorded for <strong>{{ tag_number }}</strong> yet.
+  </div>
+  {% endif %}
+
+</div>
+
+{% endblock %}
