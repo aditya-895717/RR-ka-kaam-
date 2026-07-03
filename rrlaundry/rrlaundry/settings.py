@@ -186,3 +186,13 @@ Q_CLUSTER = {
 
 # Brevo (email)
 BREVO_API_KEY = config('BREVO_API_KEY', default='')
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "root": {"handlers": ["console"], "level": "INFO"},
+    "loggers": {
+        "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": False},
+    },
+}
