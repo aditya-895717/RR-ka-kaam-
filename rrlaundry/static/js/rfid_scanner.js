@@ -25,7 +25,13 @@ class RFIDScanner {
         this._onScan       = opts.onScan       || (() => {});
         this._onDuplicate  = opts.onDuplicate  || (() => {});
         this._onInvalid    = opts.onInvalid    || (() => {});
-        this._tagPattern   = opts.tagPattern   || /^RR-\d{3,}$/;
+        // Permissive by design. This is a sanity filter for stray keystrokes,
+        // NOT a format check — the server imposes no tag format, and a stricter
+        // client pattern silently rejected every real tag in the system
+        // (DEMO-ICU-01, RFID-0001, … all failed the previous /^RR-\d{3,}$/).
+        // Whether a tag is *known* is the server's call: the scan engine
+        // returns unknown_tags and both scan pages already surface it.
+        this._tagPattern   = opts.tagPattern   || /^[A-Z0-9][A-Z0-9._\-]{2,49}$/;
         this._bufferTimeout = opts.bufferTimeout || 500;
 
         this._buffer  = '';
