@@ -91,7 +91,7 @@
             <tr class="item-row">
               <td class="row-num" style="color:#888;font-size:12px;"></td>
               <td><input type="text" class="form-control tag-input" name="tag_numbers[]"
-                         value="{{ item.tag }}" placeholder="e.g. RFID-0001" required
+                         value="{{ item.tag }}" placeholder="e.g. DEMO-ICU-01" required
                          style="border-radius:5px;border-color:#d8e6f5;"></td>
               <td>
                 <select class="form-select" name="item_types[]" style="border-radius:5px;font-size:12px;border-color:#d8e6f5;">
@@ -164,7 +164,7 @@ function addRow(tagVal, typeVal) {
   const tdTag = document.createElement('td');
   const inp   = document.createElement('input');
   inp.type = 'text'; inp.className = 'form-control tag-input';
-  inp.name = 'tag_numbers[]'; inp.placeholder = 'e.g. RFID-0001'; inp.required = true;
+  inp.name = 'tag_numbers[]'; inp.placeholder = 'e.g. DEMO-ICU-01'; inp.required = true;
   inp.style.cssText = 'border-radius:5px;border-color:#d8e6f5;';
   if (tagVal) inp.value = tagVal.toUpperCase();
   inp.addEventListener('input', () => { inp.value = inp.value.toUpperCase(); });
