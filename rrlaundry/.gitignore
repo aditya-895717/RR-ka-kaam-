@@ -1,6 +1,13 @@
 .env
 db.sqlite3
 __pycache__/
+
+# Data-migration artifacts. These contain real user rows including password
+# hashes and OTP codes — never commit them.
+backup.json
+db_backup_*.sqlite3
+*.direct_url
+
 *.pyc
 *.pyo
 *.pyd

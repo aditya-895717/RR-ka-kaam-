@@ -1,0 +1,4 @@
+# Shell scripts must keep LF endings regardless of the checkout platform.
+# core.autocrlf=true on Windows would otherwise hand Vercel's Linux builder a
+# CRLF build_files.sh, which fails with an opaque "bad interpreter" error.
+*.sh text eol=lf

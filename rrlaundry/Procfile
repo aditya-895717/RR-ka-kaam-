@@ -1,2 +1,1 @@
 web: gunicorn rrlaundry.wsgi --log-file -
-worker: python manage.py qcluster
