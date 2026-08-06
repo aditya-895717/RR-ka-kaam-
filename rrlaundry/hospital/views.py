@@ -1,4 +1,6 @@
 import logging
+import secrets
+
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
@@ -8,11 +10,11 @@ from django.views import View
 
 from django.urls import reverse
 
+from accounts.forms import AdminCreateStaffForm
 from accounts.models import (
     DeliveryProfile, HospitalDepartment, HospitalProfile,
-    HospitalStaffProfile, LaundryProfile, Role,
+    HospitalStaffProfile, LaundryProfile, Role, User,
 )
-from billing.utils import create_invoice_for_order
 from .forms import DepartmentForm, NewOrderForm, OrderFilterForm
 from .models import (
     HospitalPartnerSelection, ItemStatus, ItemType,
@@ -428,9 +430,15 @@ class OrderListView(HospitalViewMixin):
         paginator = Paginator(qs, 20)
         page = paginator.get_page(request.GET.get('page', 1))
 
+        # Preserve active filters across pagination links. 'page' is stripped so
+        # the template can append its own without duplicating the parameter.
+        params = request.GET.copy()
+        params.pop('page', None)
+
         return render(request, 'hospital/order_list.html', self.ctx(
-            orders=page,
-            form=form,
+            page_obj=page,
+            query_string=params.urlencode(),
+            filter_form=form,
             total=paginator.count,
         ))
 
@@ -476,8 +484,13 @@ class DeliveryConfirmationView(HospitalViewMixin):
         order = get_object_or_404(
             LaundryOrder, order_id=order_id, hospital=self.profile,
         )
-        if order.status != OrderStatus.DELIVERED:
-            messages.error(request, 'Order must be in Delivered state to confirm receipt.')
+        # Receipt acknowledgement only — this is NOT the invoice trigger.
+        # Billing fires on the system-verified S4 scan in rfid.engine, which is
+        # the single source of truth. Accepts DELIVERED (partial delivery) and
+        # COMPLETED (clean S4, already invoiced) so a clean delivery — the
+        # normal case — is still acknowledgeable.
+        if order.status not in (OrderStatus.DELIVERED, OrderStatus.COMPLETED):
+            messages.error(request, 'Order must be delivered before you can confirm receipt.')
             return redirect('hospital_order_detail', order_id=order_id)
 
         with transaction.atomic():
@@ -485,6 +498,77 @@ class DeliveryConfirmationView(HospitalViewMixin):
             order.save(update_fields=['status', 'updated_at'])
             order.items.update(current_status=ItemStatus.COMPLETED)
 
-        create_invoice_for_order(order)
         messages.success(request, f'Order #{order.short_id} confirmed and marked complete.')
         return redirect('hospital_order_detail', order_id=order_id)
+
+
+# ─── Staff management ─────────────────────────────────────────────────────────
+
+class ManageStaffView(HospitalViewMixin):
+    hospital_head_only = True
+
+    def _staff_qs(self):
+        return (
+            HospitalStaffProfile.objects
+            .filter(hospital=self.profile)
+            .select_related('user', 'department')
+            .order_by('user__full_name')
+        )
+
+    def get(self, request):
+        return render(request, 'hospital/staff.html', self.ctx(
+            staff=self._staff_qs(),
+            form=AdminCreateStaffForm(hospital=self.profile),
+        ))
+
+    def post(self, request):
+        form = AdminCreateStaffForm(request.POST, hospital=self.profile)
+        if not form.is_valid():
+            return render(request, 'hospital/staff.html', self.ctx(
+                staff=self._staff_qs(), form=form,
+            ))
+        cd = form.cleaned_data
+        password = secrets.token_urlsafe(10)
+        with transaction.atomic():
+            user = User.objects.create_user(
+                email=cd['email'],
+                password=password,
+                full_name=cd['full_name'],
+                phone_number=cd.get('phone_number', ''),
+                role=Role.HOSPITAL_STAFF,
+                is_onboarded=True,
+            )
+            HospitalStaffProfile.objects.create(
+                user=user,
+                hospital=self.profile,
+                department=cd.get('department'),
+                phone_number=cd.get('phone_number', ''),
+            )
+        messages.success(
+            request,
+            f'Account created for {cd["full_name"] or cd["email"]}. '
+            f'Temporary password: {password} — share securely (shown once).',
+        )
+        return redirect('hospital_manage_staff')
+
+
+class DeactivateStaffView(HospitalViewMixin):
+    hospital_head_only = True
+
+    def post(self, request, user_id):
+        sp = get_object_or_404(HospitalStaffProfile, user_id=user_id, hospital=self.profile)
+        sp.user.is_active = False
+        sp.user.save(update_fields=['is_active'])
+        messages.success(request, f'{sp.user.full_name or sp.user.email} has been deactivated.')
+        return redirect('hospital_manage_staff')
+
+
+class ReactivateStaffView(HospitalViewMixin):
+    hospital_head_only = True
+
+    def post(self, request, user_id):
+        sp = get_object_or_404(HospitalStaffProfile, user_id=user_id, hospital=self.profile)
+        sp.user.is_active = True
+        sp.user.save(update_fields=['is_active'])
+        messages.success(request, f'{sp.user.full_name or sp.user.email} has been reactivated.')
+        return redirect('hospital_manage_staff')

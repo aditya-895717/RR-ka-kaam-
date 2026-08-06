@@ -85,7 +85,7 @@
 
 {# ── Submit form ── #}
 <form method="post" action="{{ url('delivery_scan_pickup', job_id=job.job_id) }}" id="scan-form" style="margin-top:24px;">
-  {% csrf_token %}
+  {{ csrf_input }}
   <input type="hidden" name="scanned_tags" id="scanned-tags-input" value="[]">
   <div class="row g-3">
     <div class="col-12 col-md-6">

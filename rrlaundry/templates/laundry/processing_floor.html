@@ -55,7 +55,9 @@
 {# ── Pipeline summary strip ── #}
 <div class="d-flex align-items-center gap-2 mb-4 flex-wrap">
   {% for stage, data in grouped.items() %}
-  {% set cnt = data.items|length %}
+  {# data['items'], not data.items — Jinja2 resolves attributes before keys, so
+     data.items returns the dict.items METHOD rather than the item list. #}
+  {% set cnt = data['items']|length %}
   <a href="#stage-{{ stage }}" style="text-decoration:none;">
     <div style="padding:7px 14px;border-radius:20px;font-size:12px;font-weight:600;
                 {% if cnt > 0 %}
@@ -74,7 +76,8 @@
 
 {# ── Per-stage sections ── #}
 {% for stage, data in grouped.items() %}
-{% set items = data.items %}
+{# data['items'], not data.items — see note above. #}
+{% set items = data['items'] %}
 
 <div class="stage-section" id="stage-{{ stage }}">
   <div class="stage-header">
