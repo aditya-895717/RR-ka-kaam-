@@ -10,7 +10,6 @@ from rest_framework.views import APIView
 from accounts.models import (
     DeliveryProfile, HospitalDepartment, LaundryProfile, Role,
 )
-from billing.utils import create_invoice_for_order
 from .models import (
     HospitalPartnerSelection, ItemStatus, LaundryOrder, OrderItem, OrderStatus,
 )
@@ -104,6 +103,11 @@ class CreateOrderAPI(_HospitalAPIBase):
                 for item in data['items']
             ])
 
+        # Mirrors NewOrderView in hospital/views.py. Without this the API path
+        # creates an order that never reaches the delivery partner's job list.
+        from delivery.utils import create_pickup_job
+        create_pickup_job(order)
+
         _notify_delivery_partner(order)
         return Response(
             LaundryOrderSerializer(order).data,
@@ -128,9 +132,14 @@ class ConfirmDeliveryAPI(_HospitalAPIBase):
         order = get_object_or_404(
             LaundryOrder, order_id=order_id, hospital=self.hospital,
         )
-        if order.status != OrderStatus.DELIVERED:
+        # Receipt acknowledgement only — mirrors DeliveryConfirmationView in
+        # hospital/views.py. Billing fires on the S4 scan in rfid.engine, so the
+        # old create_invoice_for_order() call is gone from here. That call also
+        # ran AFTER items were set to COMPLETED, while billing.engine filters on
+        # DELIVERED — which produced a 0-item, zero-value invoice on this path.
+        if order.status not in (OrderStatus.DELIVERED, OrderStatus.COMPLETED):
             return Response(
-                {'error': 'Order must be DELIVERED before confirming receipt.'},
+                {'error': 'Order must be delivered before confirming receipt.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -139,5 +148,4 @@ class ConfirmDeliveryAPI(_HospitalAPIBase):
             order.save(update_fields=['status', 'updated_at'])
             order.items.update(current_status=ItemStatus.COMPLETED)
 
-        create_invoice_for_order(order)
         return Response({'status': 'completed', 'order_id': str(order.order_id)})

@@ -13,11 +13,10 @@ from django.views import View
 
 from accounts.models import DeliveryProfile, Role
 
+from rfid.engine import DeliveryLossFlag, process_s1_pickup, process_s4_delivery
+
 from .models import DeliveryJob, JobStatus, JobType
-from .utils import (
-    process_delivery_scan, process_pickup_scan,
-    send_delivery_confirmation, send_pickup_confirmation,
-)
+from .utils import complete_job
 
 logger = logging.getLogger(__name__)
 
@@ -164,11 +163,26 @@ class ScanPickupView(DeliveryViewMixin):
             messages.error(request, 'No items scanned. Scan at least one item before completing pickup.')
             return redirect('delivery_scan_pickup', job_id=job_id)
 
-        scanned_count, unknown = process_pickup_scan(job, tag_numbers)
-        send_pickup_confirmation(job.order, scanned_count)
+        # Delegated to rfid.engine — the single scan implementation. It writes
+        # RFIDScanEvent + ReconciliationLog and sends the pickup notification,
+        # none of which the old local processor did.
+        try:
+            result = process_s1_pickup(job.order.order_id, tag_numbers, request.user)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect('delivery_scan_pickup', job_id=job_id)
 
+        complete_job(job)
+
+        scanned_count = result['received_count']
+        unknown = result['unknown_tags']
         if unknown:
             messages.warning(request, f'Pickup complete. {len(unknown)} unknown tag(s) ignored: {", ".join(unknown[:5])}.')
+        if result['missing_tags']:
+            messages.warning(
+                request,
+                f'{len(result["missing_tags"])} item(s) were not scanned and remain with the hospital.',
+            )
         messages.success(request, f'Pickup complete — {scanned_count} item(s) scanned for Order #{job.order.short_id}.')
         return redirect('delivery_job_list')
 
@@ -230,11 +244,30 @@ class ScanDeliveryView(DeliveryViewMixin):
             messages.error(request, 'No items scanned. Scan at least one item before completing delivery.')
             return redirect('delivery_scan_delivery', job_id=job_id)
 
-        scanned_count, unknown = process_delivery_scan(job, tag_numbers)
-        send_delivery_confirmation(job.order, scanned_count)
+        # Delegated to rfid.engine. A short delivery raises DeliveryLossFlag
+        # *after* the transaction commits — the scan is real, so the job is
+        # still completed and the partial result is reported to the operator.
+        try:
+            result = process_s4_delivery(job.order.order_id, tag_numbers, request.user)
+        except DeliveryLossFlag as flag:
+            result = flag.result
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect('delivery_scan_delivery', job_id=job_id)
 
-        if unknown:
-            messages.warning(request, f'Delivery complete. {len(unknown)} unknown tag(s) ignored.')
+        complete_job(job)
+
+        scanned_count = result['received_count']
+        if result['unknown_tags']:
+            messages.warning(request, f'Delivery complete. {len(result["unknown_tags"])} unknown tag(s) ignored.')
+        if result['missing_tags']:
+            messages.warning(
+                request,
+                f'{len(result["missing_tags"])} item(s) were not delivered and have been flagged: '
+                f'{", ".join(result["missing_tags"][:5])}.',
+            )
+        if result.get('invoice_number'):
+            messages.success(request, f'Invoice {result["invoice_number"]} generated for Order #{job.order.short_id}.')
         messages.success(request, f'Delivery complete — {scanned_count} item(s) scanned for Order #{job.order.short_id}.')
         return redirect('delivery_job_list')
 

@@ -7,12 +7,11 @@ from rest_framework.views import APIView
 from accounts.models import DeliveryProfile, Role
 from hospital.models import ItemStatus
 
+from rfid.engine import DeliveryLossFlag, process_s1_pickup, process_s4_delivery
+
 from .models import DeliveryJob, JobStatus, JobType
 from .serializers import DeliveryJobSerializer, ScanSubmitSerializer
-from .utils import (
-    create_delivery_job, process_delivery_scan, process_pickup_scan,
-    send_delivery_confirmation, send_pickup_confirmation,
-)
+from .utils import complete_job
 
 
 class _DeliveryAPIBase(APIView):
@@ -115,12 +114,20 @@ class CompletePickupAPI(_DeliveryAPIBase):
             return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
 
         tag_numbers = [t.strip().upper() for t in ser.validated_data['tag_numbers']]
-        scanned_count, unknown = process_pickup_scan(job, tag_numbers)
-        send_pickup_confirmation(job.order, scanned_count)
+        # Delegated to rfid.engine — same single implementation the portal uses.
+        try:
+            result = process_s1_pickup(job.order.order_id, tag_numbers, request.user)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        complete_job(job)
+        job.order.refresh_from_db()
 
         return Response({
-            'scanned': scanned_count,
-            'unknown': unknown,
+            'scanned': result['received_count'],
+            'unknown': result['unknown_tags'],
+            'missing': result['missing_tags'],
+            'is_matched': result['is_matched'],
             'order_status': job.order.status,
         })
 
@@ -146,11 +153,24 @@ class CompleteDeliveryAPI(_DeliveryAPIBase):
             return Response(ser.errors, status=status.HTTP_400_BAD_REQUEST)
 
         tag_numbers = [t.strip().upper() for t in ser.validated_data['tag_numbers']]
-        scanned_count, unknown = process_delivery_scan(job, tag_numbers)
-        send_delivery_confirmation(job.order, scanned_count)
+        # Delegated to rfid.engine. A short delivery raises DeliveryLossFlag
+        # after the commit; the scan is real, so this stays a 200 with the
+        # partial-success payload rather than an error.
+        try:
+            result = process_s4_delivery(job.order.order_id, tag_numbers, request.user)
+        except DeliveryLossFlag as flag:
+            result = flag.result
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+        complete_job(job)
+        job.order.refresh_from_db()
 
         return Response({
-            'scanned': scanned_count,
-            'unknown': unknown,
+            'scanned': result['received_count'],
+            'unknown': result['unknown_tags'],
+            'missing': result['missing_tags'],
+            'is_matched': result['is_matched'],
+            'invoice_number': result.get('invoice_number'),
             'order_status': job.order.status,
         })
