@@ -4,7 +4,7 @@
 
 {% block extra_css %}
 <style>
-  :root { --accent: #C41A1A; --accent-h: #a31515; --accent-light: #fff0f0; }
+  :root { --accent: #0D9488; --accent-h: #0a7a71; --accent-light: #e6faf8; }
 
   .btn-accent        { background: var(--accent); color: #fff; border: none; border-radius: 6px; font-weight: 600; padding: 8px 18px; transition: background .15s; }
   .btn-accent:hover  { background: var(--accent-h); color: #fff; }
@@ -244,6 +244,16 @@
     <path d="M2 12l10 5 10-5"/>
   </svg>
   Processing Floor
+</a>
+
+<a href="{{ url('laundry_scan_items') }}"
+   class="sidebar-link {% if p.startswith('/laundry/scan/') %}active{% endif %}">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+    <path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+    <line x1="7" y1="12" x2="17" y2="12"/>
+  </svg>
+  Scan Items
 </a>
 
 <a href="{{ url('laundry_order_list') }}"

@@ -1,17 +1,20 @@
+import secrets
 from collections import OrderedDict
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
+from django.db import transaction
 from django.db.models import OuterRef, Subquery, Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
 
+from accounts.forms import AdminCreateWorkerForm
 from accounts.models import LaundryProfile, LaundryWorkerProfile, Role, User
-from hospital.models import ItemStatus, LaundryOrder, OrderItem
+from hospital.models import ItemStatus, LaundryOrder, OrderItem, OrderStatus
 
 from .forms import PricingForm, StageUpdateForm
 from .models import (
@@ -285,11 +288,12 @@ class UpdateItemStageView(LaundryViewMixin):
             notes=notes,
         )
 
-        # Update OrderItem.current_status
+        # Update OrderItem.current_status and reset the stale-alert clock
         new_item_status = STAGE_TO_ITEM_STATUS.get(new_stage)
         if new_item_status:
             item.current_status = new_item_status
-            item.save(update_fields=['current_status'])
+        item.last_scanned_at = timezone.now()
+        item.save(update_fields=['current_status', 'last_scanned_at'])
 
         messages.success(request, f'Tag {tag_number} moved to {new_stage}.')
         return redirect('laundry_floor')
@@ -329,19 +333,16 @@ class PricingView(LaundryViewMixin):
 class WorkerManagementView(LaundryViewMixin):
     laundry_admin_only = True
 
-    def get(self, request):
+    def _worker_data(self):
         worker_profiles = (
             LaundryWorkerProfile.objects
             .filter(laundry=self.profile)
             .select_related('user')
         )
-
-        # Items currently assigned (on the floor) per worker
         floor_items = OrderItem.objects.filter(
             order__laundry_partner=self.profile,
             current_status__in=_FLOOR_STATUSES,
         )
-
         worker_item_map = {}
         for wp in worker_profiles:
             assigned_items = WorkerItemAssignment.objects.filter(
@@ -350,11 +351,69 @@ class WorkerManagementView(LaundryViewMixin):
                 is_first_worker=True,
             ).select_related('order_item', 'order_item__order__hospital')
             worker_item_map[wp.user_id] = list(assigned_items)
+        return worker_profiles, worker_item_map
 
+    def get(self, request):
+        worker_profiles, worker_item_map = self._worker_data()
         return render(request, 'laundry/workers.html', self.ctx(
             worker_profiles=worker_profiles,
             worker_item_map=worker_item_map,
+            form=AdminCreateWorkerForm(),
         ))
+
+    def post(self, request):
+        form = AdminCreateWorkerForm(request.POST)
+        if not form.is_valid():
+            worker_profiles, worker_item_map = self._worker_data()
+            return render(request, 'laundry/workers.html', self.ctx(
+                worker_profiles=worker_profiles,
+                worker_item_map=worker_item_map,
+                form=form,
+            ))
+        cd = form.cleaned_data
+        password = secrets.token_urlsafe(10)
+        with transaction.atomic():
+            user = User.objects.create_user(
+                email=cd['email'],
+                password=password,
+                full_name=cd['full_name'],
+                phone_number=cd.get('phone_number', ''),
+                role=Role.LAUNDRY_WORKER,
+                is_onboarded=True,
+            )
+            LaundryWorkerProfile.objects.create(
+                user=user,
+                laundry=self.profile,
+                phone_number=cd.get('phone_number', ''),
+            )
+        messages.success(
+            request,
+            f'Worker account created for {cd["full_name"] or cd["email"]}. '
+            f'Temporary password: {password} — share securely (shown once).',
+        )
+        return redirect('laundry_workers')
+
+
+class DeactivateWorkerView(LaundryViewMixin):
+    laundry_admin_only = True
+
+    def post(self, request, user_id):
+        wp = get_object_or_404(LaundryWorkerProfile, user_id=user_id, laundry=self.profile)
+        wp.user.is_active = False
+        wp.user.save(update_fields=['is_active'])
+        messages.success(request, f'{wp.user.full_name or wp.user.email} has been deactivated.')
+        return redirect('laundry_workers')
+
+
+class ReactivateWorkerView(LaundryViewMixin):
+    laundry_admin_only = True
+
+    def post(self, request, user_id):
+        wp = get_object_or_404(LaundryWorkerProfile, user_id=user_id, laundry=self.profile)
+        wp.user.is_active = True
+        wp.user.save(update_fields=['is_active'])
+        messages.success(request, f'{wp.user.full_name or wp.user.email} has been reactivated.')
+        return redirect('laundry_workers')
 
 
 # ─────────────────────────────────────────────────────────────
@@ -434,3 +493,191 @@ class LaundryOrderListView(LaundryViewMixin):
             order_status_choices=OrderStatus.choices,
             query_string=f'status={status_filter}',
         ))
+
+
+# ─────────────────────────────────────────────────────────────
+# Scan Items — S2 receive / S3 dispatch
+#
+# The laundry side of the RFID chain had no UI at all: S2 and S3 were
+# reachable only through the raw DRF endpoints, so no human had ever driven
+# them. These three views mirror the delivery portal's job-list -> scan-page
+# pattern and delegate to rfid.engine, the single scan implementation.
+# ─────────────────────────────────────────────────────────────
+
+class ScanItemsView(LaundryViewMixin):
+    """Landing page: orders awaiting S2 receive, and orders ready for S3 dispatch."""
+
+    def get(self, request):
+        base = LaundryOrder.objects.filter(
+            laundry_partner=self.profile,
+        ).select_related('hospital', 'department').prefetch_related('items')
+
+        incoming = base.filter(status=OrderStatus.PICKUP_DONE).order_by('created_at')
+        ready    = base.filter(status=OrderStatus.AT_LAUNDRY).order_by('created_at')
+
+        # Counts shown per row are the items each scan actually expects, which
+        # is not the same as the order's total item count once anything has
+        # been flagged as a transit loss.
+        for o in incoming:
+            o.expected_count = o.items.filter(
+                current_status__in=[ItemStatus.PICKUP_SCANNED, ItemStatus.IN_TRANSIT_OUTBOUND],
+            ).count()
+        for o in ready:
+            o.expected_count = o.items.filter(
+                current_status__in=[
+                    ItemStatus.AT_LAUNDRY, ItemStatus.RECEIVED_AT_PLANT, ItemStatus.WASHED,
+                ],
+            ).count()
+
+        return render(request, 'laundry/scan_items.html', self.ctx(
+            incoming=incoming,
+            ready=ready,
+        ))
+
+
+class _LaundryScanBase(LaundryViewMixin):
+    """Shared plumbing for the two scan pages."""
+
+    template = None
+    expected_statuses = ()
+    required_order_status = None
+    redirect_name = None
+
+    def _get_order(self, order_id):
+        return get_object_or_404(
+            LaundryOrder.objects.select_related('hospital', 'department'),
+            order_id=order_id,
+            laundry_partner=self.profile,
+        )
+
+    def _expected_items(self, order):
+        return list(
+            order.items
+            .filter(current_status__in=self.expected_statuses)
+            .values('tag_number', 'item_type')
+            .order_by('tag_number')
+        )
+
+    def _parse_tags(self, request):
+        """Returns (tags, error_message)."""
+        import json
+        raw = request.POST.get('scanned_tags', '[]')
+        try:
+            tags = json.loads(raw)
+            if not isinstance(tags, list):
+                raise ValueError
+        except (json.JSONDecodeError, ValueError):
+            return None, 'Invalid scan submission — please try again.'
+
+        tags = [str(t).strip().upper() for t in tags if t]
+        if not tags:
+            return None, 'No items scanned. Scan at least one item before submitting.'
+        return tags, None
+
+    def get(self, request, order_id):
+        order = self._get_order(order_id)
+        if order.status != self.required_order_status:
+            messages.info(
+                request,
+                f'Order #{order.short_id} is {order.get_status_display()} and is not '
+                f'awaiting this scan.',
+            )
+            return redirect('laundry_scan_items')
+
+        return render(request, self.template, self.ctx(
+            order=order,
+            expected_items=self._expected_items(order),
+        ))
+
+
+class ScanReceiveView(_LaundryScanBase):
+    """S2 — receive an inbound consignment at the plant."""
+
+    template = 'laundry/scan_receive.html'
+    expected_statuses = (ItemStatus.PICKUP_SCANNED, ItemStatus.IN_TRANSIT_OUTBOUND)
+    required_order_status = OrderStatus.PICKUP_DONE
+
+    def post(self, request, order_id):
+        from rfid.engine import TransitLossFlag, process_s2_received
+
+        order = self._get_order(order_id)
+        tags, err = self._parse_tags(request)
+        if err:
+            messages.error(request, err)
+            return redirect('laundry_scan_receive', order_id=order_id)
+
+        # A short scan is a real outcome, not an error: the engine commits,
+        # flags the missing items TRANSIT_LOSS_FLAG, then raises so the caller
+        # can report it. Both branches are success paths for the operator.
+        try:
+            result = process_s2_received(order.order_id, tags, request.user)
+        except TransitLossFlag as flag:
+            result = flag.result
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect('laundry_scan_items')
+
+        if result['unknown_tags']:
+            messages.warning(
+                request,
+                f'{len(result["unknown_tags"])} tag(s) were not expected on this order '
+                f'and were ignored: {", ".join(result["unknown_tags"][:5])}.',
+            )
+        if result['missing_tags']:
+            messages.error(
+                request,
+                f'TRANSIT LOSS — {len(result["missing_tags"])} item(s) did not arrive and '
+                f'have been flagged: {", ".join(result["missing_tags"][:5])}.',
+            )
+        messages.success(
+            request,
+            f'Received {result["received_count"]} of {result["expected_count"]} item(s) '
+            f'for Order #{order.short_id}.',
+        )
+        return redirect('laundry_scan_items')
+
+
+class ScanDispatchView(_LaundryScanBase):
+    """S3 — dispatch a finished consignment back to the hospital."""
+
+    template = 'laundry/scan_dispatch.html'
+    expected_statuses = (
+        ItemStatus.AT_LAUNDRY, ItemStatus.RECEIVED_AT_PLANT, ItemStatus.WASHED,
+    )
+    required_order_status = OrderStatus.AT_LAUNDRY
+
+    def post(self, request, order_id):
+        from rfid.engine import process_s3_dispatch
+
+        order = self._get_order(order_id)
+        tags, err = self._parse_tags(request)
+        if err:
+            messages.error(request, err)
+            return redirect('laundry_scan_dispatch', order_id=order_id)
+
+        # S3 raises no loss flag — the operator decides what physically ships.
+        # Unscanned items simply stay at the plant for a later dispatch.
+        try:
+            result = process_s3_dispatch(order.order_id, tags, request.user)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect('laundry_scan_items')
+
+        if result['unknown_tags']:
+            messages.warning(
+                request,
+                f'{len(result["unknown_tags"])} tag(s) were not eligible for dispatch '
+                f'and were ignored: {", ".join(result["unknown_tags"][:5])}.',
+            )
+        held_back = result['expected_count'] - result['received_count']
+        if held_back > 0:
+            messages.warning(
+                request,
+                f'{held_back} item(s) were not scanned and remain at the plant.',
+            )
+        messages.success(
+            request,
+            f'Dispatched {result["received_count"]} item(s) for Order #{order.short_id}. '
+            f'A delivery job has been created for the return leg.',
+        )
+        return redirect('laundry_scan_items')

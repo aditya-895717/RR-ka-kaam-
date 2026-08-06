@@ -1,0 +1,7 @@
+{% extends "laundry/_scan_page.html" %}
+
+{% block page_title %}Scan Dispatch — #{{ order.short_id }}{% endblock %}
+{% block scan_heading %}Scan Tags — S3 Dispatch to Hospital{% endblock %}
+{% block expected_label %}Available at Plant{% endblock %}
+{% block form_action %}{{ url('laundry_scan_dispatch', order_id=order.order_id) }}{% endblock %}
+{% block submit_label %}Confirm Dispatch{% endblock %}

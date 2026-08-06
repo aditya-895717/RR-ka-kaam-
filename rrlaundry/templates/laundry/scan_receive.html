@@ -1,0 +1,7 @@
+{% extends "laundry/_scan_page.html" %}
+
+{% block page_title %}Scan Receive — #{{ order.short_id }}{% endblock %}
+{% block scan_heading %}Scan Tags — S2 Receive at Plant{% endblock %}
+{% block expected_label %}Expected from Pickup{% endblock %}
+{% block form_action %}{{ url('laundry_scan_receive', order_id=order.order_id) }}{% endblock %}
+{% block submit_label %}Confirm Receipt{% endblock %}

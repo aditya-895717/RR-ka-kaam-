@@ -1,0 +1,203 @@
+{# ───────────────────────────────────────────────────────────────────────────
+   Shared laundry scan page (S2 receive / S3 dispatch).
+
+   scan_receive.html and scan_dispatch.html both extend this and override only
+   the blocks below. The delivery portal keeps two fully duplicated templates;
+   that duplication is what let its two scan implementations drift apart, so
+   the laundry side deliberately shares one.
+
+   Child templates must define:
+     scan_code       'S2' / 'S3'
+     scan_heading    heading above the scan zone
+     form_action     URL the scanned tags POST to
+     submit_label    submit button text
+     expected_label  heading for the right-hand checklist
+   ─────────────────────────────────────────────────────────────────────────── #}
+{% extends "laundry/base_laundry.html" %}
+
+{% block extra_css %}{{ super() }}
+<style>
+  .scan-zone {
+    border: 2px dashed #d8e6f5; border-radius: 10px; background: #f8fafc;
+    padding: 28px 18px; text-align: center; transition: border-color .2s, background .2s;
+  }
+  .scan-zone.active { border-color: var(--accent); background: var(--accent-light); }
+  .scan-count { font-size: 40px; font-weight: 700; color: #003580; line-height: 1; }
+  .tag-pill {
+    display: inline-block; font-family: monospace; font-size: 12px;
+    background: #eef4fa; color: #003580; border: .5px solid #d8e6f5;
+    border-radius: 20px; padding: 3px 11px; margin: 0 5px 5px 0;
+  }
+  .tag-pill.new { background: var(--accent-light); border-color: var(--accent); color: var(--accent); }
+  .chk-row { display: flex; align-items: center; gap: 9px; padding: 6px 0; border-bottom: 1px solid #f0f4f8; }
+  .chk-dot { width: 8px; height: 8px; border-radius: 50%; background: #d8e0e8; flex-shrink: 0; }
+  .btn-scan-action { width: 100%; border-radius: 6px; font-weight: 600; font-size: 13px; padding: 11px 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+  <a href="{{ url('laundry_scan_items') }}"
+     style="font-size:12px;color:#777;text-decoration:none;">&larr; Back to Scan Items</a>
+</div>
+
+{# ── Order meta ── #}
+<div class="card-section mb-4" style="padding:14px 18px;">
+  <div class="row g-3">
+    <div class="col-6 col-md-3">
+      <div style="font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.5px;">Order</div>
+      <div style="font-size:14px;font-weight:600;margin-top:3px;font-family:monospace;">#{{ order.short_id }}</div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div style="font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.5px;">Hospital</div>
+      <div style="font-size:14px;font-weight:600;margin-top:3px;">{{ order.hospital.hospital_name }}</div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div style="font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.5px;">Department</div>
+      <div style="font-size:14px;font-weight:600;margin-top:3px;">{{ order.department.department_name if order.department else '—' }}</div>
+    </div>
+    <div class="col-6 col-md-3">
+      <div style="font-size:11px;color:#777;text-transform:uppercase;letter-spacing:.5px;">Expected Items</div>
+      <div style="font-size:14px;font-weight:600;margin-top:3px;">{{ expected_items|length }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  {# ── Scan zone ── #}
+  <div class="col-12 col-lg-7">
+    <div class="card-section">
+      <h6 class="card-section-title">{% block scan_heading %}{% endblock %}</h6>
+
+      <div class="scan-zone" id="scan-zone">
+        <div class="scan-count" id="scan-count">0</div>
+        <div style="font-size:13px;color:#777;margin-top:6px;">items scanned</div>
+        <div style="font-size:11px;color:#9aa5b1;margin-top:10px;" id="scanner-status">
+          Point C72 scanner and scan tags
+        </div>
+      </div>
+
+      <div id="tag-list" style="margin-top:14px;max-height:220px;overflow-y:auto;"></div>
+      <div id="scan-alert" style="display:none;margin-top:10px;padding:10px 14px;border-radius:5px;font-size:12px;"></div>
+    </div>
+  </div>
+
+  {# ── Expected checklist ── #}
+  <div class="col-12 col-lg-5">
+    <div class="card-section" style="max-height:520px;overflow-y:auto;">
+      <h6 class="card-section-title">{% block expected_label %}Expected Items{% endblock %} ({{ expected_items|length }})</h6>
+      {% if expected_items %}
+        {% for item in expected_items %}
+        <div class="chk-row">
+          <div class="chk-dot" id="dot-{{ item.tag_number }}"></div>
+          <div>
+            <div style="font-size:12px;font-family:monospace;color:#333;">{{ item.tag_number }}</div>
+            <div style="font-size:11px;color:#9aa5b1;">{{ item.item_type }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div style="color:#9aa5b1;font-size:13px;">No items expected for this scan.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+{# ── Submit ── #}
+<form method="post" action="{% block form_action %}{% endblock %}" id="scan-form" style="margin-top:24px;">
+  {{ csrf_input }}
+  <input type="hidden" name="scanned_tags" id="scanned-tags-input" value="[]">
+  <div class="row g-3">
+    <div class="col-12 col-md-6">
+      <button type="button" id="btn-clear" class="btn btn-scan-action"
+              style="background:#f5f7fa;color:#6b7280;border:.5px solid #d8e6f5;">
+        Clear All Tags
+      </button>
+    </div>
+    <div class="col-12 col-md-6">
+      <button type="submit" id="btn-complete" class="btn btn-scan-action btn-accent" disabled>
+        {% block submit_label %}Submit{% endblock %} (<span id="btn-count">0</span> items)
+      </button>
+    </div>
+  </div>
+</form>
+
+<script src="{{ static('js/rfid_scanner.js') }}"></script>
+<script>
+const scannedTags = [];
+const expectedSet = new Set({{ expected_items | map(attribute='tag_number') | list | tojson }});
+
+const countEl     = document.getElementById('scan-count');
+const btnCount    = document.getElementById('btn-count');
+const btnComplete = document.getElementById('btn-complete');
+const tagListEl   = document.getElementById('tag-list');
+const alertEl     = document.getElementById('scan-alert');
+const scanZone    = document.getElementById('scan-zone');
+const statusEl    = document.getElementById('scanner-status');
+const input       = document.getElementById('scanned-tags-input');
+
+function showAlert(msg, type) {
+  alertEl.textContent = msg;
+  alertEl.style.display = 'block';
+  alertEl.style.background = type === 'warn' ? '#fff7e6' : '#fff0f0';
+  alertEl.style.color      = type === 'warn' ? '#92400e' : '#c00';
+  alertEl.style.border     = '1px solid ' + (type === 'warn' ? '#f5d9a0' : '#f5c0c0');
+  setTimeout(() => { alertEl.style.display = 'none'; }, 3000);
+}
+
+function updateUI() {
+  const n = scannedTags.length;
+  countEl.textContent  = n;
+  btnCount.textContent = n;
+  btnComplete.disabled = n === 0;
+  input.value = JSON.stringify(scannedTags);
+}
+
+function addTag(tag) {
+  const pill = document.createElement('span');
+  pill.className = 'tag-pill new';
+  pill.id = 'pill-' + tag;
+  pill.textContent = tag;
+  tagListEl.prepend(pill);
+
+  // Tick the checklist only for tags this scan actually expects; an
+  // unexpected-but-well-formed tag still registers, and the server reports it
+  // back as an unknown tag.
+  const dot = document.getElementById('dot-' + tag);
+  if (dot) dot.style.background = 'var(--accent)';
+  else showAlert('Scanned ' + tag + ' — not on the expected list for this order.', 'warn');
+
+  scanZone.classList.add('active');
+  setTimeout(() => pill.classList.remove('new'), 1500);
+}
+
+const scanner = new RFIDScanner({
+  onScan: (tag) => {
+    scannedTags.push(tag);
+    addTag(tag);
+    updateUI();
+    statusEl.textContent = 'Last scan: ' + tag;
+  },
+  onDuplicate: (tag) => showAlert('Duplicate: ' + tag + ' already scanned.', 'warn'),
+  onInvalid:   (raw) => showAlert('Unreadable tag: ' + raw, 'error'),
+});
+scanner.start();
+statusEl.textContent = 'Scanner ready — scan tags';
+
+document.getElementById('btn-clear').addEventListener('click', () => {
+  scannedTags.length = 0;
+  tagListEl.innerHTML = '';
+  scanZone.classList.remove('active');
+  scanner.clearTags();
+  expectedSet.forEach(tag => {
+    const dot = document.getElementById('dot-' + tag);
+    if (dot) dot.style.background = '#d8e0e8';
+  });
+  updateUI();
+});
+
+document.getElementById('scan-form').addEventListener('submit', () => {
+  input.value = JSON.stringify(scannedTags);
+});
+</script>
+{% endblock %}
