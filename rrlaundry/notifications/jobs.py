@@ -9,9 +9,22 @@ ALERT_THRESHOLD_MINUTES = 60
 
 def check_missing_items():
     """
-    Runs every 5 minutes (django-q2 schedule).
-    Finds OrderItems stuck in an in-progress laundry stage for > 60 minutes
-    and creates a MissingItemAlert if one does not already exist.
+    The single missing-item detector for the system.
+
+    Driven by GET/POST /api/notifications/sweep/, which an external pinger hits
+    every 5 minutes. (It previously ran under a django-q2 schedule; that broker
+    cannot exist on Vercel's serverless runtime.)
+
+    Finds OrderItems stuck in an in-progress laundry stage for > 60 minutes,
+    creates a MissingItemAlert plus a DashboardNotification for the laundry
+    admin, and counts alerts that are still unresolved on a later sweep.
+
+    This absorbed rfid.engine.check_stale_items, which was a second, divergent
+    detector writing to the same table off a different signal
+    (OrderItem.last_scanned_at rather than ItemStageLog) and creating no
+    DashboardNotification at all.
+
+    Returns {'created': int, 'escalated': int}.
     """
     from django.db.models import OuterRef, Subquery
     from hospital.models import ItemStatus, OrderItem
@@ -48,11 +61,27 @@ def check_missing_items():
     )
 
     created_count = 0
+    escalated_count = 0
+
     for item in items_at_laundry:
-        already_alerted = MissingItemAlert.objects.filter(
+        existing = MissingItemAlert.objects.filter(
             order_item=item, is_resolved=False,
-        ).exists()
-        if already_alerted:
+        ).first()
+
+        if existing:
+            # Escalation, absorbed from check_stale_items: the item is STILL
+            # stuck on a later sweep. Deliberately does not touch
+            # last_updated_at — that field records when the item actually last
+            # moved, and MissingItemAlert.minutes_since_last_update() derives
+            # the stuck duration from it. Refreshing it (as the old code's
+            # docstring claimed to intend) would reset that clock and make a
+            # long-stuck item look freshly flagged, hiding the very thing the
+            # alert exists to surface.
+            escalated_count += 1
+            logger.warning(
+                'MissingItemAlert still unresolved: tag=%s stuck %d min',
+                item.tag_number, existing.minutes_since_last_update(),
+            )
             continue
 
         # Fetch the first worker if assigned
@@ -94,9 +123,12 @@ def check_missing_items():
             item.latest_log_at,
         )
 
-    if created_count:
-        logger.info('check_missing_items: created %d new alert(s).', created_count)
+    if created_count or escalated_count:
+        logger.info(
+            'check_missing_items: %d new alert(s), %d still unresolved.',
+            created_count, escalated_count,
+        )
     else:
         logger.debug('check_missing_items: no new alerts.')
 
-    return created_count
+    return {'created': created_count, 'escalated': escalated_count}

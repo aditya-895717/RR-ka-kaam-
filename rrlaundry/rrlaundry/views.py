@@ -1,17 +1,21 @@
 import datetime
-import os
+
 from django.http import JsonResponse
 
 
 def ping(request):
-    brevo_key = os.environ.get('BREVO_API_KEY')
-    google_client_id = os.environ.get('GOOGLE_CLIENT_ID')
-    google_client_secret = os.environ.get('GOOGLE_CLIENT_SECRET')
+    """
+    Liveness probe. Nothing else.
 
+    - No auth required.
+    - Returns ONLY {"status": "ok", "ts": "<iso-8601>"} — no env/config leakage.
+    - NO side effects. This endpoint used to run a missing-item sweep, which
+      meant an unauthenticated caller could trigger database writes. Alert
+      detection now lives behind the token-protected
+      /api/notifications/sweep/ endpoint, so a health check is once again
+      just a health check.
+    """
     return JsonResponse({
-        "status": "ok",
-        "service": "rrlaundry",
-        "timestamp": str(datetime.datetime.now()),
-        "email_configured": bool(brevo_key),
-        "google_signin_configured": bool(google_client_id and google_client_secret),
+        'status': 'ok',
+        'ts': datetime.datetime.now(datetime.timezone.utc).isoformat(),
     })
