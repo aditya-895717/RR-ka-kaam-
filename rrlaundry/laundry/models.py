@@ -2,7 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-from hospital.models import OrderItem
+from hospital.models import ItemStatus, OrderItem
 
 
 class FloorStage(models.TextChoices):
@@ -104,7 +104,7 @@ class MissingItemAlert(models.Model):
         OrderItem, on_delete=models.CASCADE, related_name='alerts',
     )
     triggered_at = models.DateTimeField(auto_now_add=True)
-    last_stage = models.CharField(max_length=20, choices=FloorStage.choices)
+    last_stage = models.CharField(max_length=25, choices=ItemStatus.choices)
     last_updated_at = models.DateTimeField()
     assigned_worker = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,

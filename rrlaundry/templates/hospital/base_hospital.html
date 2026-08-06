@@ -4,7 +4,7 @@
 
 {% block extra_css %}
 <style>
-  :root { --accent: #C41A1A; --accent-h: #a31515; --accent-light: #fff0f0; }
+  :root { --accent: #1B5FBF; --accent-h: #154fa0; --accent-light: #e8f0fc; }
 
   .btn-accent        { background: var(--accent); color: #fff; border: none; border-radius: 6px; font-weight: 600; padding: 8px 18px; transition: background .15s; }
   .btn-accent:hover  { background: var(--accent-h); color: #fff; }
@@ -55,7 +55,7 @@
   Dashboard
 </a>
 
-<a href="#"
+<a href="{{ url('hospital_new_order') }}"
    class="sidebar-link {% if p.startswith('/hospital/orders/new') %}active{% endif %}">
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="12" cy="12" r="10"/>
@@ -64,7 +64,7 @@
   New Order
 </a>
 
-<a href="#"
+<a href="{{ url('hospital_order_list') }}"
    class="sidebar-link {% if p.startswith('/hospital/orders/') and not p.startswith('/hospital/orders/new') %}active{% endif %}">
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
@@ -73,7 +73,7 @@
   Order History
 </a>
 
-<a href="#"
+<a href="{{ url('hospital_departments') }}"
    class="sidebar-link {% if p.startswith('/hospital/departments/') %}active{% endif %}">
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/>
@@ -86,7 +86,7 @@
   Departments
 </a>
 
-<a href="#"
+<a href="{{ url('hospital_item_tracking') }}"
    class="sidebar-link {% if p.startswith('/hospital/tracking/') %}active{% endif %}">
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/>
@@ -94,6 +94,16 @@
     <rect x="7" y="7" width="10" height="10" rx="1"/>
   </svg>
   Item Tracking
+</a>
+
+<a href="{{ url('hospital_partners') }}"
+   class="sidebar-link {% if p.startswith('/hospital/partners/') %}active{% endif %}">
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+    <circle cx="9" cy="7" r="4"/>
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+  </svg>
+  Partners
 </a>
 
 <a href="/billing/invoices/"
@@ -106,13 +116,16 @@
   Invoices
 </a>
 
-<a href="#"
-   class="sidebar-link {% if p.startswith('/hospital/settings/') %}active{% endif %}">
+{% if request.user.role == 'HOSPITAL_HEAD' %}
+<a href="{{ url('hospital_manage_staff') }}"
+   class="sidebar-link {% if p.startswith('/hospital/staff/') %}active{% endif %}">
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-    <circle cx="12" cy="12" r="3"/>
-    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+    <circle cx="9" cy="7" r="4"/>
+    <line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/>
   </svg>
-  Settings
+  Manage Staff
 </a>
+{% endif %}
 
 {% endblock %}

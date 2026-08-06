@@ -37,11 +37,16 @@ def send_email(to_email, to_name, subject, html_content):
         html_content=html_content,
     )
     try:
-        api.send_transac_email(payload)
-        logger.info('Email sent → %s (%s)', to_email, subject)
+        response = api.send_transac_email(payload)
+        logger.info('Email sent → %s (%s) message_id=%s',
+                    to_email, subject, getattr(response, 'message_id', None))
         return True
     except ApiException as exc:
-        logger.error('Brevo send_email failed for %s: %s', to_email, exc)
+        logger.error('Brevo send_email failed for %s: %s',
+                     to_email, getattr(exc, 'body', exc))
+        return False
+    except Exception as exc:
+        logger.error('Unexpected error sending email to %s: %s', to_email, exc)
         return False
 
 

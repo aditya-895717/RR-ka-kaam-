@@ -93,7 +93,9 @@ class OTPRequestView(View):
             return JsonResponse({'success': False, 'error': 'No account found with this email.'})
         otp_code = ''.join(random.choices(string.digits, k=6))
         EmailOTP.objects.create(user=user, otp_code=otp_code)
-        send_otp_email(email, user.full_name, otp_code)
+        sent = send_otp_email(email, user.full_name, otp_code)
+        if not sent:
+            return JsonResponse({'success': False, 'error': 'Could not send OTP email. Please try again.'})
         return JsonResponse({'success': True})
 
 
@@ -186,6 +188,14 @@ class OnboardingView(View):
             return render(request, 'accounts/onboarding.html', {
                 'step': 1,
                 'error': 'Please select a role to continue.',
+            })
+        if role in (Role.HOSPITAL_STAFF, Role.LAUNDRY_WORKER):
+            return render(request, 'accounts/onboarding.html', {
+                'step': 1,
+                'error': (
+                    'Staff and Worker accounts are created by your admin — '
+                    'ask your Hospital Head or Laundry Admin to add you.'
+                ),
             })
         request.session[_SESSION_STEP] = 2
         request.session[_SESSION_ROLE] = role

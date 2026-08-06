@@ -74,12 +74,43 @@ Live URL: [https://rrlaundry.onrender.com](https://rrlaundry.onrender.com)
 ## Post-Deployment Steps
 
 1. Confirm Render is deploying from `Capture-The-Flag`
-2. Migrations run automatically during Render build
-3. Run `python manage.py createsuperuser` via Render Shell
-4. In Django admin → Sites: set domain to `rrlaundry.onrender.com`
+2. Migrations run automatically during Render build (`buildCommand` in render.yaml)
+3. Via Render Shell, load the seed fixture (creates the required Site row):
+   ```bash
+   python manage.py loaddata core/fixtures/seed.json
+   ```
+4. Via Render Shell, create the superuser:
+   ```bash
+   python manage.py createsuperuser
+   ```
 5. In Django admin → Social Applications: add Google app with client ID and secret
 6. Verify SQLite disk is mounted at `/data/`
-7. Send a test OTP email to confirm Brevo delivery
+7. Hit `GET /ping/` — confirm `{"status": "ok"}` response
+8. Send a test OTP email to confirm Brevo delivery
+
+## Database Backup and Restore
+
+The SQLite database lives at `/data/db.sqlite3` on Render's persistent disk. Back up and restore via Render Shell:
+
+```bash
+# Back up to a timestamped file in /data/
+python manage.py backup_data
+
+# Restore from a specific backup (will prompt for confirmation)
+python manage.py restore_data /data/db_backup_20260703_120000.sqlite3
+
+# Restore without prompt (for scripts)
+python manage.py restore_data /data/db_backup_20260703_120000.sqlite3 --no-confirm
+```
+
+## Background Jobs (django-q2)
+
+`django-q2` is installed and configured but **the qcluster worker is not running in production** on Render's free tier (free plans allow only one web service). The `check_missing_items()` job — which creates `MissingItemAlert` records for items idle >60 minutes — will not fire automatically.
+
+**Options if automated alerts are needed:**
+- Upgrade to a paid Render plan and add a background worker service running `python manage.py qcluster`
+- Configure a Render Cron Job to `POST` to an internal endpoint that calls `check_missing_items()` directly
+- Accept manual alert creation in the admin for now
 
 ## RFID Scan Chain
 

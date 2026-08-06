@@ -3,11 +3,16 @@
 
 {% block content %}
 
-<div class="mb-4">
-  <h1 class="page-heading">Worker Management</h1>
-  <p class="page-subtitle mb-0">
-    {{ worker_profiles|length }} worker{{ 's' if worker_profiles|length != 1 else '' }} at {{ profile.business_name }}
-  </p>
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="page-heading">Worker Management</h1>
+    <p class="page-subtitle mb-0">
+      {{ worker_profiles|length }} worker{{ 's' if worker_profiles|length != 1 else '' }} at {{ profile.business_name }}
+    </p>
+  </div>
+  <button class="btn btn-accent" data-bs-toggle="modal" data-bs-target="#addWorkerModal">
+    + Add Worker
+  </button>
 </div>
 
 {% set msgs = get_messages(request) %}
@@ -27,21 +32,38 @@
   <div class="col-12 col-md-6">
     <div class="card-section">
       {# Worker header #}
-      <div class="d-flex align-items-start gap-3 mb-3">
+      <div class="d-flex align-items-start gap-3 mb-3" style="opacity: {{ '1' if wp.user.is_active else '0.6' }};">
         <div style="width:42px;height:42px;border-radius:50%;background:var(--accent-light);color:var(--accent);font-size:16px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
           {{ (wp.user.full_name or wp.user.email)[:1].upper() }}
         </div>
         <div>
           <div style="font-weight:700;font-size:14px;color:#1e3a6e;">
             {{ wp.user.full_name or wp.user.email }}
+            {% if not wp.user.is_active %}
+            <span class="status-badge sb-flagged" style="font-size:10px;margin-left:6px;">Inactive</span>
+            {% endif %}
           </div>
           <div style="font-size:12px;color:#888;">{{ wp.user.email }}</div>
           <div style="font-size:12px;color:#888;">{{ wp.phone_number or '—' }}</div>
         </div>
-        <div class="ms-auto">
+        <div class="ms-auto d-flex align-items-center gap-2">
           <span style="font-size:12px;font-weight:600;background:#e6f7ef;color:#166534;border-radius:20px;padding:3px 12px;">
             {{ assigned|length }} item{{ 's' if assigned|length != 1 else '' }}
           </span>
+          {% if wp.user.is_active %}
+          <form method="post" action="{{ url('laundry_deactivate_worker', user_id=wp.user.id) }}" style="margin:0;">
+            {{ csrf_input }}
+            <button type="submit" class="btn-accent-sm" style="background:#64748b;font-size:11px;"
+              onclick="return confirm('Deactivate {{ wp.user.full_name or wp.user.email }}?')">
+              Deactivate
+            </button>
+          </form>
+          {% else %}
+          <form method="post" action="{{ url('laundry_reactivate_worker', user_id=wp.user.id) }}" style="margin:0;">
+            {{ csrf_input }}
+            <button type="submit" class="btn-accent-sm" style="font-size:11px;">Reactivate</button>
+          </form>
+          {% endif %}
         </div>
       </div>
 
@@ -96,9 +118,77 @@
     <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
     <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
   </svg>
-  <div style="font-size:14px;color:#aaa;">No workers registered yet.</div>
-  <div style="font-size:12px;color:#bbb;margin-top:4px;">Workers are added through the onboarding flow (LAUNDRY_WORKER role).</div>
+  <div style="font-size:14px;color:#aaa;">No workers yet.</div>
+  <div style="font-size:12px;color:#bbb;margin-top:4px;">
+    Click <strong>Add Worker</strong> to create the first account.
+  </div>
 </div>
+{% endif %}
+
+{# ── Add Worker Modal ── #}
+<div class="modal fade" id="addWorkerModal" tabindex="-1" aria-labelledby="addWorkerLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:460px;">
+    <div class="modal-content" style="border-radius:8px;border:.5px solid #d8e6f5;">
+      <form method="post">
+        {{ csrf_input }}
+        <div class="modal-header" style="border-bottom:.5px solid #e8eef5;padding:1.1rem 1.5rem;">
+          <h5 class="modal-title" id="addWorkerLabel" style="font-size:14px;font-weight:700;color:#1e3a6e;">
+            New Worker Account
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
+                  style="width:18px;height:18px;opacity:.5;"></button>
+        </div>
+        <div class="modal-body" style="padding:1.25rem 1.5rem;">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label-sm">Full Name *</label>
+              <input type="text" class="form-control" name="full_name"
+                     value="{{ form.full_name.value() or '' if form else '' }}"
+                     placeholder="e.g. Rahul Gupta" required
+                     style="border-radius:6px;font-size:13px;border-color:#d8e6f5;">
+              {% if form %}{% for err in form.full_name.errors %}
+              <div style="color:#c00;font-size:11px;margin-top:3px;">{{ err }}</div>
+              {% endfor %}{% endif %}
+            </div>
+            <div class="col-12">
+              <label class="form-label-sm">Email Address *</label>
+              <input type="email" class="form-control" name="email"
+                     value="{{ form.email.value() or '' if form else '' }}"
+                     placeholder="worker@laundry.com" required
+                     style="border-radius:6px;font-size:13px;border-color:#d8e6f5;">
+              {% if form %}{% for err in form.email.errors %}
+              <div style="color:#c00;font-size:11px;margin-top:3px;">{{ err }}</div>
+              {% endfor %}{% endif %}
+            </div>
+            <div class="col-12">
+              <label class="form-label-sm">Phone</label>
+              <input type="text" class="form-control" name="phone_number"
+                     value="{{ form.phone_number.value() or '' if form else '' }}"
+                     placeholder="+91 XXXXX XXXXX"
+                     style="border-radius:6px;font-size:13px;border-color:#d8e6f5;">
+            </div>
+          </div>
+          <div class="mt-3 p-3" style="background:#f8fafc;border-radius:6px;font-size:12px;color:#666;">
+            A temporary password will be auto-generated and shown once after creation.
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top:.5px solid #e8eef5;padding:.9rem 1.5rem;">
+          <button type="button" class="btn btn-outline-secondary btn-sm"
+                  data-bs-dismiss="modal" style="border-radius:5px;font-size:12px;">Cancel</button>
+          <button type="submit" class="btn btn-accent btn-sm" style="font-size:12px;padding:6px 16px;">
+            Create Worker
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% if form and form.errors %}
+<script>
+var modal = new bootstrap.Modal(document.getElementById('addWorkerModal'));
+modal.show();
+</script>
 {% endif %}
 
 {% endblock %}

@@ -126,3 +126,62 @@ class DeliveryPartnerOnboardingForm(forms.Form):
         label='Vehicle Type',
         widget=forms.Select(attrs=_SELECT),
     )
+
+
+# ─── Admin-created sub-account forms ─────────────────────────────────────────
+
+class AdminCreateStaffForm(forms.Form):
+    full_name = forms.CharField(
+        max_length=150, label='Full Name',
+        widget=forms.TextInput(attrs={**_TEXT, 'placeholder': 'e.g. Priya Sharma'}),
+    )
+    email = forms.EmailField(
+        label='Email Address',
+        widget=forms.EmailInput(attrs={**_TEXT, 'placeholder': 'staff@hospital.com'}),
+    )
+    phone_number = forms.CharField(
+        max_length=20, required=False, label='Phone Number',
+        widget=forms.TextInput(attrs={**_TEXT, 'placeholder': '+91 XXXXX XXXXX'}),
+    )
+    department = forms.ModelChoiceField(
+        queryset=HospitalDepartment.objects.none(),
+        required=False,
+        empty_label='— No specific department —',
+        widget=forms.Select(attrs=_SELECT),
+    )
+
+    def __init__(self, *args, hospital=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if hospital is not None:
+            self.fields['department'].queryset = HospitalDepartment.objects.filter(
+                hospital=hospital,
+            )
+
+    def clean_email(self):
+        from .models import User
+        email = self.cleaned_data['email'].lower().strip()
+        if User.objects.filter(email=email).exists():
+            raise forms.ValidationError('An account with this email already exists.')
+        return email
+
+
+class AdminCreateWorkerForm(forms.Form):
+    full_name = forms.CharField(
+        max_length=150, label='Full Name',
+        widget=forms.TextInput(attrs={**_TEXT, 'placeholder': 'e.g. Rahul Gupta'}),
+    )
+    email = forms.EmailField(
+        label='Email Address',
+        widget=forms.EmailInput(attrs={**_TEXT, 'placeholder': 'worker@laundry.com'}),
+    )
+    phone_number = forms.CharField(
+        max_length=20, required=False, label='Phone Number',
+        widget=forms.TextInput(attrs={**_TEXT, 'placeholder': '+91 XXXXX XXXXX'}),
+    )
+
+    def clean_email(self):
+        from .models import User
+        email = self.cleaned_data['email'].lower().strip()
+        if User.objects.filter(email=email).exists():
+            raise forms.ValidationError('An account with this email already exists.')
+        return email

@@ -13,4 +13,7 @@ urlpatterns = [
     path('orders/<uuid:order_id>/',                      views.OrderDetailView.as_view(),                 name='hospital_order_detail'),
     path('orders/<uuid:order_id>/confirm/',              views.DeliveryConfirmationView.as_view(),        name='hospital_confirm_delivery'),
     path('tracking/',                                    views.ItemTrackingView.as_view(),                name='hospital_item_tracking'),
+    path('staff/',                                       views.ManageStaffView.as_view(),                 name='hospital_manage_staff'),
+    path('staff/<uuid:user_id>/deactivate/',             views.DeactivateStaffView.as_view(),             name='hospital_deactivate_staff'),
+    path('staff/<uuid:user_id>/reactivate/',             views.ReactivateStaffView.as_view(),             name='hospital_reactivate_staff'),
 ]

@@ -1,0 +1,188 @@
+{% extends "hospital/base_hospital.html" %}
+{% block page_title %}Manage Staff{% endblock %}
+
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+  <div>
+    <h1 class="page-heading">Staff Management</h1>
+    <p class="page-subtitle mb-0">
+      {{ staff|length }} staff member{{ 's' if staff|length != 1 else '' }} at {{ profile.hospital_name }}
+    </p>
+  </div>
+  <button class="btn btn-accent" data-bs-toggle="modal" data-bs-target="#addStaffModal">
+    + Add Staff Member
+  </button>
+</div>
+
+{% set msgs = get_messages(request) %}
+{% if msgs %}
+{% for msg in msgs %}
+<div class="alert alert-portal mb-3" style="background:#e8f4ff;border:none;color:#1e3a6e;font-size:13px;">
+  {{ msg }}
+</div>
+{% endfor %}
+{% endif %}
+
+{% if form.errors %}
+<div class="alert alert-portal mb-3" style="background:#fff0f0;border:none;color:#c00;font-size:13px;">
+  Please fix the errors below and try again.
+</div>
+{% endif %}
+
+{# Staff table #}
+{% if staff %}
+<div class="card-section p-0">
+  <div class="table-responsive">
+    <table class="table table-portal mb-0">
+      <thead>
+        <tr>
+          <th style="padding-left:1.5rem;">Name</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Department</th>
+          <th>Status</th>
+          <th style="width:120px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sp in staff %}
+        <tr style="opacity: {{ '1' if sp.user.is_active else '0.6' }};">
+          <td style="padding-left:1.5rem;font-weight:500;color:#1e3a6e;">
+            {{ sp.user.full_name or '—' }}
+          </td>
+          <td style="color:#666;font-size:12px;">{{ sp.user.email }}</td>
+          <td style="color:#666;">{{ sp.phone_number or '—' }}</td>
+          <td>{{ sp.department.department_name if sp.department else '—' }}</td>
+          <td>
+            {% if sp.user.is_active %}
+            <span class="status-badge sb-pickup">Active</span>
+            {% else %}
+            <span class="status-badge sb-flagged">Inactive</span>
+            {% endif %}
+          </td>
+          <td style="text-align:right;padding-right:1rem;">
+            {% if sp.user.is_active %}
+            <form method="post" action="{{ url('hospital_deactivate_staff', user_id=sp.user.id) }}" style="display:inline;">
+              {{ csrf_input }}
+              <button type="submit" class="btn-accent-sm"
+                      style="background:#64748b;"
+                      onclick="return confirm('Deactivate {{ sp.user.full_name or sp.user.email }}?')">
+                Deactivate
+              </button>
+            </form>
+            {% else %}
+            <form method="post" action="{{ url('hospital_reactivate_staff', user_id=sp.user.id) }}" style="display:inline;">
+              {{ csrf_input }}
+              <button type="submit" class="btn-accent-sm">Reactivate</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card-section" style="text-align:center;padding:3rem;">
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d8e6f5" stroke-width="1.5"
+       style="margin:0 auto 12px;display:block;">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+    <circle cx="9" cy="7" r="4"/>
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+  </svg>
+  <div style="font-size:14px;color:#aaa;">No staff members yet.</div>
+  <div style="font-size:12px;color:#bbb;margin-top:4px;">
+    Click <strong>Add Staff Member</strong> to create the first account.
+  </div>
+</div>
+{% endif %}
+
+{# ── Add Staff Modal ── #}
+<div class="modal fade" id="addStaffModal" tabindex="-1" aria-labelledby="addStaffLabel" aria-hidden="true"
+     {% if form.errors %}style="display:block;" class="show"{% endif %}>
+  <div class="modal-dialog modal-dialog-centered" style="max-width:520px;">
+    <div class="modal-content" style="border-radius:8px;border:.5px solid #d8e6f5;">
+      <form method="post">
+        {{ csrf_input }}
+        <div class="modal-header" style="border-bottom:.5px solid #e8eef5;padding:1.1rem 1.5rem;">
+          <h5 class="modal-title" id="addStaffLabel" style="font-size:14px;font-weight:700;color:#1e3a6e;">
+            New Staff Account
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"
+                  style="width:18px;height:18px;opacity:.5;"></button>
+        </div>
+        <div class="modal-body" style="padding:1.25rem 1.5rem;">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label-sm">Full Name *</label>
+              <input type="text" class="form-control" name="full_name"
+                     value="{{ form.full_name.value() or '' }}"
+                     placeholder="e.g. Priya Sharma" required
+                     style="border-radius:6px;font-size:13px;border-color:#d8e6f5;">
+              {% for err in form.full_name.errors %}
+              <div style="color:#c00;font-size:11px;margin-top:3px;">{{ err }}</div>
+              {% endfor %}
+            </div>
+            <div class="col-12">
+              <label class="form-label-sm">Email Address *</label>
+              <input type="email" class="form-control" name="email"
+                     value="{{ form.email.value() or '' }}"
+                     placeholder="staff@hospital.com" required
+                     style="border-radius:6px;font-size:13px;border-color:#d8e6f5;">
+              {% for err in form.email.errors %}
+              <div style="color:#c00;font-size:11px;margin-top:3px;">{{ err }}</div>
+              {% endfor %}
+            </div>
+            <div class="col-6">
+              <label class="form-label-sm">Phone</label>
+              <input type="text" class="form-control" name="phone_number"
+                     value="{{ form.phone_number.value() or '' }}"
+                     placeholder="+91 XXXXX XXXXX"
+                     style="border-radius:6px;font-size:13px;border-color:#d8e6f5;">
+            </div>
+            <div class="col-6">
+              <label class="form-label-sm">Department</label>
+              <select class="form-select" name="department"
+                      style="border-radius:6px;font-size:13px;border-color:#d8e6f5;">
+                <option value="">— No department —</option>
+                {% for choice_value, choice_label in form.fields.department.choices %}
+                {% if choice_value %}
+                <option value="{{ choice_value }}"
+                  {% if form.department.value() == choice_value|string %}selected{% endif %}>
+                  {{ choice_label }}
+                </option>
+                {% endif %}
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="mt-3 p-3" style="background:#f8fafc;border-radius:6px;font-size:12px;color:#666;">
+            A temporary password will be auto-generated and shown once after creation.
+            Share it securely with the new staff member.
+          </div>
+        </div>
+        <div class="modal-footer" style="border-top:.5px solid #e8eef5;padding:.9rem 1.5rem;">
+          <button type="button" class="btn btn-outline-secondary btn-sm"
+                  data-bs-dismiss="modal" style="border-radius:5px;font-size:12px;">
+            Cancel
+          </button>
+          <button type="submit" class="btn btn-accent btn-sm" style="font-size:12px;padding:6px 16px;">
+            Create Account
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% if form.errors %}
+<div id="backdropFix" class="modal-backdrop fade show"></div>
+<script>
+document.getElementById('addStaffModal').classList.add('show');
+document.getElementById('addStaffModal').style.display = 'block';
+</script>
+{% endif %}
+
+{% endblock %}
