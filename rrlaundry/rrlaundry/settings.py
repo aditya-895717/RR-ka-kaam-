@@ -208,12 +208,23 @@ STATIC_ROOT = BASE_DIR / 'static_collected'
 STATICFILES_DIRS = [BASE_DIR / 'static']
 
 # NOT CompressedManifestStaticFilesStorage. That variant resolves {{ static(...) }}
-# through a staticfiles.json manifest written by collectstatic. On Vercel,
-# collectstatic runs in the @vercel/static-build container, so the manifest never
-# exists inside the Python lambda and every static() call would raise at runtime.
-# The non-manifest variant resolves URLs by plain path, which the CDN route in
-# vercel.json serves directly. Trade-off: no content-hash cache-busting.
+# through a staticfiles.json manifest written by collectstatic, which never runs
+# on Vercel — so the manifest would not exist in the lambda and every static()
+# call would raise at runtime. Trade-off: no content-hash cache-busting.
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+
+# Vercel's @vercel/python builder installs requirements.txt but offers no build
+# hook to run collectstatic, so STATIC_ROOT is empty inside the lambda. With
+# USE_FINDERS, WhiteNoise resolves each request through the staticfiles finders
+# instead — reading straight from STATICFILES_DIRS and each app's static/
+# directory (which is how django.contrib.admin's assets are found). This removes
+# the collectstatic step entirely rather than working around its absence.
+#
+# Cost: files are served by the lambda rather than a CDN, and finders are
+# marginally slower than a prebuilt manifest. Acceptable at this asset volume;
+# revisit if static traffic grows.
+WHITENOISE_USE_FINDERS = True
+WHITENOISE_AUTOREFRESH = DEBUG
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
